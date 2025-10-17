@@ -23,7 +23,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 📁 RUTA CORREGIDA - __dirname ya es "backend/src"
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
+//app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Diagnóstico mejorado
 app.get("/diagnostic/static-files", (req, res) => {

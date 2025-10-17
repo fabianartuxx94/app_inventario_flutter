@@ -1,22 +1,20 @@
-// ignore_for_file: prefer_interpolation_to_compose_strings
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import '../../models/articulo_model.dart';
 import '../../services/articulo_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
+import '../../providers/auth_provider.dart'; // 👈 Añade esta importación
 
 class EditarArticuloScreen extends StatefulWidget {
   final Articulo articulo;
-  final String token;
 
   const EditarArticuloScreen({
     super.key,
     required this.articulo,
-    required this.token,
-  });
+  }); // 👈 Quita el parámetro token
 
   @override
   State<EditarArticuloScreen> createState() => _EditarArticuloScreenState();
@@ -63,23 +61,11 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 👇 Obtén el token del Provider
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      
       if (kDebugMode) {
         print('🔄 INICIANDO ACTUALIZACIÓN DE ARTÍCULO');
-      }
-      if (kDebugMode) {
-        print('📝 Datos del formulario:');
-      }
-      if (kDebugMode) {
-        print('   • Nombre: ${_nombreController.text.trim()}');
-      }
-      if (kDebugMode) {
-        print('   • Marca: ${_marcaController.text.trim()}');
-      }
-      if (kDebugMode) {
-        print('   • Referencia: ${_referenciaController.text.trim()}');
-      }
-      if (kDebugMode) {
-        print('   • Tiene nueva imagen: ${_nuevaImagenSeleccionada != null}');
       }
 
       String? nuevaImagenUrl;
@@ -92,7 +78,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         
         final uploadResult = await UploadService.uploadImage(
           _nuevaImagenSeleccionada!,
-          widget.token,
+          token, // 👈 Usa el token del Provider
           nombreArticulo: _nombreController.text.trim(),
           marca: _marcaController.text.trim(),
           referencia: _referenciaController.text.trim(),
@@ -103,14 +89,10 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
           if (kDebugMode) {
             print('✅ Imagen subida exitosamente: $nuevaImagenUrl');
           }
-          if (kDebugMode) {
-            print('   📄 Nombre del archivo: ${uploadResult['filename']}');
-          }
         } else {
           if (kDebugMode) {
             print('❌ Error subiendo imagen: ${uploadResult['error']}');
           }
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error subiendo imagen: ${uploadResult['error']}'),
@@ -140,7 +122,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       }
       final resultado = await ArticuloService.actualizarArticulo(
         articuloActualizado, 
-        widget.token
+        token // 👈 Usa el token del Provider
       );
 
       if (resultado['success'] == true) {
@@ -154,7 +136,6 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
           });
         }
 
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ ${resultado['message']}'),
@@ -164,13 +145,11 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         );
         
         await Future.delayed(const Duration(milliseconds: 1500));
-        // ignore: use_build_context_synchronously
         Navigator.of(context).pop(true);
       } else {
         if (kDebugMode) {
           print('❌ Error guardando artículo: ${resultado['error']}');
         }
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: ${resultado['error']}'),
@@ -183,7 +162,6 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       if (kDebugMode) {
         print('💥 ERROR CRÍTICO: $e');
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Error al actualizar: $e'),
@@ -200,12 +178,12 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     if (kDebugMode) {
       print('🔍 Ejecutando diagnóstico...');
     }
-    final resultado = await UploadService.diagnostic(widget.token);
+    final token = Provider.of<AuthProvider>(context, listen: false).token!;
+    final resultado = await UploadService.diagnostic(token);
     if (kDebugMode) {
       print('📊 Resultado diagnóstico: $resultado');
     }
     
-    // ignore: use_build_context_synchronously
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Diagnóstico: ${resultado['success'] ? 'Éxito' : 'Error'}'),
@@ -263,31 +241,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1a202c),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF474554)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info, color: Color(0xFFf59e0b), size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'ID: ${widget.articulo.idGeneral} • ${widget.articulo.nombreArticulo}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
+                    // ... (el resto del código permanece igual, pero actualiza ImageUploader)
                     ImageUploader(
                       onImageSelected: (imageFile) {
                         setState(() {
@@ -298,12 +252,13 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                         }
                       },
                       currentImageUrl: _imagenUrl,
-                      token: widget.token,
                       nombreArticulo: _nombreController.text,
                       marca: _marcaController.text,
                       referencia: _referenciaController.text,
                     ),
-                    const SizedBox(height: 24),
+                    // ... (el resto del código permanece igual)
+
+                       const SizedBox(height: 24),
 
                     _buildTextField(
                       controller: _nombreController,
@@ -582,3 +537,4 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     super.dispose();
   }
 }
+                  

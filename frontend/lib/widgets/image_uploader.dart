@@ -2,12 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../services/upload_service.dart';
+// 👈 Añade esta importación
 
 class ImageUploader extends StatefulWidget {
   final Function(File)? onImageSelected; // Solo notifica la selección
   final String? currentImageUrl;
-  final String token;
   final String? nombreArticulo;
   final String? marca;
   final String? referencia;
@@ -16,11 +15,10 @@ class ImageUploader extends StatefulWidget {
     super.key,
     this.onImageSelected,
     this.currentImageUrl,
-    required this.token,
     this.nombreArticulo,
     this.marca,
     this.referencia,
-  });
+  }); // 👈 Quita el parámetro token requerido
 
   @override
   State<ImageUploader> createState() => _ImageUploaderState();
@@ -64,7 +62,7 @@ class _ImageUploaderState extends State<ImageUploader> {
         
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('📸 Imagen seleccionada - Se subirá al guardar'),
             backgroundColor: Color(0xFFf59e0b),
             duration: Duration(seconds: 2),
@@ -80,7 +78,7 @@ class _ImageUploaderState extends State<ImageUploader> {
         SnackBar(
           content: Text('❌ Error: $e'),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -96,7 +94,7 @@ class _ImageUploaderState extends State<ImageUploader> {
     widget.onImageSelected?.call(File('')); // Enviar archivo vacío o null
     
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('🗑️ Imagen removida'),
         backgroundColor: Colors.orange,
         duration: Duration(seconds: 2),
@@ -113,12 +111,23 @@ class _ImageUploaderState extends State<ImageUploader> {
     widget.onImageSelected?.call(File('')); // Enviar archivo vacío o null
     
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('🗑️ Imagen seleccionada removida'),
         backgroundColor: Colors.orange,
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  // Método auxiliar para obtener la URL completa de la imagen
+  String _getImageUrl(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    } else {
+      // Si es una ruta relativa, construir la URL completa
+      // Ajusta esta lógica según tu configuración de backend
+      return 'https://tu-backend.com/uploads/$imagePath';
+    }
   }
 
   Widget _buildImagePreview() {
@@ -130,7 +139,7 @@ class _ImageUploaderState extends State<ImageUploader> {
             width: 150,
             height: 150,
             decoration: BoxDecoration(
-              border: Border.all(color: Color(0xFFf59e0b), width: 3),
+              border: Border.all(color: const Color(0xFFf59e0b), width: 3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: ClipRRect(
@@ -140,8 +149,8 @@ class _ImageUploaderState extends State<ImageUploader> {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    color: Color(0xFF2d3748),
-                    child: Column(
+                    color: const Color(0xFF2d3748),
+                    child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.error, size: 40, color: Colors.red),
@@ -160,13 +169,12 @@ class _ImageUploaderState extends State<ImageUploader> {
             child: GestureDetector(
               onTap: _removeSelectedImage,
               child: Container(
-                padding: EdgeInsets.all(4),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
                   color: Colors.red.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.close, size: 16, color: Colors.white),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
               ),
             ),
           ),
@@ -175,12 +183,12 @@ class _ImageUploaderState extends State<ImageUploader> {
             bottom: 4,
             left: 4,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Color(0xFFf59e0b),
+                color: const Color(0xFFf59e0b),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
+              child: const Text(
                 'PENDIENTE',
                 style: TextStyle(
                   color: Colors.white,
@@ -202,18 +210,18 @@ class _ImageUploaderState extends State<ImageUploader> {
             width: 150,
             height: 150,
             decoration: BoxDecoration(
-              border: Border.all(color: Color(0xFF10b981), width: 2),
+              border: Border.all(color: const Color(0xFF10b981), width: 2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                UploadService.getImageUrl(_imageUrl!),
+                _getImageUrl(_imageUrl!),
                 fit: BoxFit.cover,
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return Container(
-                    color: Color(0xFF2d3748),
+                    color: const Color(0xFF2d3748),
                     child: Center(
                       child: CircularProgressIndicator(
                         value: loadingProgress.expectedTotalBytes != null
@@ -226,8 +234,8 @@ class _ImageUploaderState extends State<ImageUploader> {
                 },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    color: Color(0xFF2d3748),
-                    child: Column(
+                    color: const Color(0xFF2d3748),
+                    child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.broken_image, size: 40, color: Colors.red),
@@ -246,13 +254,12 @@ class _ImageUploaderState extends State<ImageUploader> {
             child: GestureDetector(
               onTap: _removeImage,
               child: Container(
-                padding: EdgeInsets.all(4),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
                   color: Colors.red.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.close, size: 16, color: Colors.white),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
               ),
             ),
           ),
@@ -261,12 +268,12 @@ class _ImageUploaderState extends State<ImageUploader> {
             bottom: 4,
             left: 4,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Color(0xFF10b981),
+                color: const Color(0xFF10b981),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
+              child: const Text(
                 'ACTUAL',
                 style: TextStyle(
                   color: Colors.white,
@@ -285,11 +292,11 @@ class _ImageUploaderState extends State<ImageUploader> {
       width: 150,
       height: 150,
       decoration: BoxDecoration(
-        border: Border.all(color: Color(0xFF474554)),
+        border: Border.all(color: const Color(0xFF474554)),
         borderRadius: BorderRadius.circular(12),
-        color: Color(0xFF2d3748),
+        color: const Color(0xFF2d3748),
       ),
-      child: Column(
+      child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.photo_camera, size: 40, color: Color(0xFFaca9bb)),
@@ -311,7 +318,7 @@ class _ImageUploaderState extends State<ImageUploader> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Imagen del Artículo',
           style: TextStyle(
             color: Colors.white,
@@ -319,17 +326,17 @@ class _ImageUploaderState extends State<ImageUploader> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         
         // Información sobre el comportamiento
         Container(
-          padding: EdgeInsets.all(8),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Color(0xFF1a202c),
+            color: const Color(0xFF1a202c),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Color(0xFFf59e0b)),
+            border: Border.all(color: const Color(0xFFf59e0b)),
           ),
-          child: Row(
+          child: const Row(
             children: [
               Icon(Icons.info, color: Color(0xFFf59e0b), size: 16),
               SizedBox(width: 8),
@@ -345,10 +352,10 @@ class _ImageUploaderState extends State<ImageUploader> {
             ],
           ),
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
         
         Center(child: _buildImagePreview()),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
 
         // Botones de selección
         Row(
@@ -357,28 +364,28 @@ class _ImageUploaderState extends State<ImageUploader> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () => _pickImage(ImageSource.gallery),
-                icon: Icon(Icons.photo_library, size: 18),
-                label: Text('Seleccionar de Galería'),
+                icon: const Icon(Icons.photo_library, size: 18),
+                label: const Text('Seleccionar de Galería'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF0948d6),
+                  backgroundColor: const Color(0xFF0948d6),
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () => _pickImage(ImageSource.camera),
-                icon: Icon(Icons.camera_alt, size: 18),
-                label: Text('Tomar Foto'),
+                icon: const Icon(Icons.camera_alt, size: 18),
+                label: const Text('Tomar Foto'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF474554),
+                  backgroundColor: const Color(0xFF474554),
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/custom_background.dart';
 import '../services/api_service.dart';
 import 'dashboard/dashboard_page.dart';
-import '../widgets/responsive_layout.dart';  // No olvides importar el ResponsiveLayout
+import '../widgets/responsive_layout.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,92 +21,190 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _loading = false;
+  final _formKey = GlobalKey<FormState>();
+  final FocusNode _passwordFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  // Cargar credenciales guardadas
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUsername = prefs.getString('username');
+      final savedPassword = prefs.getString('password');
+      final rememberMe = prefs.getBool('rememberMe') ?? false;
+
+      if (mounted) {
+        setState(() {
+          if (savedUsername != null) _usernameController.text = savedUsername;
+          if (savedPassword != null && rememberMe) _passwordController.text = savedPassword;
+          _rememberMe = rememberMe;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Error cargando credenciales: $e');
+      }
+    }
+  }
+
+  // Guardar credenciales
+  Future<void> _saveCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('username', _usernameController.text.trim());
+        await prefs.setString('password', _passwordController.text.trim());
+        await prefs.setBool('rememberMe', true);
+      } else {
+        await prefs.remove('password');
+        await prefs.setBool('rememberMe', false);
+        // Mantenemos el username por conveniencia
+        await prefs.setString('username', _usernameController.text.trim());
+      }
+    } catch (e) {
+      print('Error guardando credenciales: $e');
+    }
+  }
+
+  // Limpiar credenciales
+  Future<void> _clearCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('username');
+      await prefs.remove('password');
+      await prefs.remove('rememberMe');
+    } catch (e) {
+      print('Error limpiando credenciales: $e');
+    }
+  }
 
   Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _loading = true);
 
-    // 👇 Llamamos al servicio y guardamos el token devuelto
-    final token = await ApiService.login(
-      _usernameController.text.trim(),
-      _passwordController.text.trim(),
-    );
-
-    setState(() => _loading = false);
-
-    // 👇 Verificamos si el widget sigue montado antes de usar context
-    if (!mounted) return;
-
-    if (token != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => DashboardPage(token: token)),
+    try {
+      final token = await ApiService.login(
+        _usernameController.text.trim(),
+        _passwordController.text.trim(),
       );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Credenciales inválidas')));
+
+      if (!mounted) return;
+
+      if (token != null) {
+        // Guardar credenciales si "Recordarme" está activado
+        await _saveCredentials();
+        
+        Provider.of<AuthProvider>(context, listen: false).login(token);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Credenciales inválidas'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  // Manejar la tecla Enter - MÉTODO CORREGIDO
+  void _handleKeyPress(RawKeyEvent event) {
+    if (event.logicalKey == LogicalKeyboardKey.enter) {
+      _login();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const CustomBackground(),
-          ResponsiveLayout(
-            mobileBody: Center(child: _buildLoginForm(context, 350)),
-            desktopBody: Row(
-              children: [
-                // Lado izquierdo: imagen y mensaje
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/suchance.png',
-                          width: 200,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.image_not_supported,
-                                  size: 100, color: Colors.white70),
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        onKey: _handleKeyPress,
+        child: GestureDetector(
+          onTap: () {
+            // Ocultar teclado al tocar fuera de los campos
+            FocusScope.of(context).unfocus();
+          },
+          child: Stack(
+            children: [
+              const CustomBackground(),
+              ResponsiveLayout(
+                mobileBody: Center(child: _buildLoginForm(context, 350)),
+                desktopBody: Row(
+                  children: [
+                    // Lado izquierdo: imagen y mensaje
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/suchance.png',
+                              width: 200,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.image_not_supported,
+                                      size: 100, color: Colors.white70),
+                            ),
+                            const SizedBox(height: 30),
+                            Text(
+                              "Bienvenido a InventarioApp",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              "Gestiona tu inventario de forma simple y eficiente.",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 30),
-                        Text(
-                          "Bienvenido a InventarioApp",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          "Gestiona tu inventario de forma simple y eficiente.",
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
 
-                // Lado derecho: formulario
-                Expanded(
-                  child: Center(
-                    child: _buildLoginForm(context, 400),
-                  ),
+                    // Lado derecho: formulario
+                    Expanded(
+                      child: Center(
+                        child: _buildLoginForm(context, 400),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -123,72 +225,158 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildLogo(),
-          const SizedBox(height: 3),
-          Text(
-            "Login",
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _buildInput(
-            Icons.person_outline,
-            "Usuario",
-            _usernameController,
-          ),
-          const SizedBox(height: 20),
-          _buildInput(
-            Icons.lock_outline,
-            "Contraseña",
-            _passwordController,
-            obscure: true,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Checkbox(
-                    value: _rememberMe,
-                    onChanged: (v) => setState(() => _rememberMe = v!),
-                    side: const BorderSide(color: Colors.white70),
-                  ),
-                  const Text(
-                    "Recordarme",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loading ? null : _login,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildLogo(),
+            const SizedBox(height: 3),
+            Text(
+              "Login",
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            child: _loading
-                ? const CircularProgressIndicator()
-                : const Text(
-                    "Ingresar",
+            const SizedBox(height: 10),
+            _buildInput(
+              Icons.person_outline,
+              "Usuario",
+              _usernameController,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Por favor ingrese su usuario';
+                }
+                return null;
+              },
+              onFieldSubmitted: (value) {
+                // Al presionar Enter en usuario, mover foco a contraseña
+                FocusScope.of(context).requestFocus(_passwordFocusNode);
+              },
+            ),
+            const SizedBox(height: 20),
+            _buildInput(
+              Icons.lock_outline,
+              "Contraseña",
+              _passwordController,
+              obscure: true,
+              focusNode: _passwordFocusNode,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Por favor ingrese su contraseña';
+                }
+                return null;
+              },
+              onFieldSubmitted: (value) => _login(),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged: (v) {
+                        setState(() => _rememberMe = v!);
+                        if (!v!) {
+                          _clearCredentials();
+                        }
+                      },
+                      side: const BorderSide(color: Colors.white70),
+                      checkColor: Colors.white,
+                      fillColor: MaterialStateProperty.resolveWith<Color>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.selected)) {
+                            return Colors.blue;
+                          }
+                          return Colors.transparent;
+                        },
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _rememberMe = !_rememberMe);
+                        if (!_rememberMe) {
+                          _clearCredentials();
+                        }
+                      },
+                      child: Text(
+                        "Recordarme",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () {
+                    // TODO: Implementar funcionalidad de "¿Olvidó su contraseña?"
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Funcionalidad en desarrollo'),
+                        backgroundColor: Colors.blue,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    "¿Olvidó su contraseña?",
                     style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                      fontSize: 14,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
-          ),
-        ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        ),
+                      )
+                    : Text(
+                        "Ingresar",
+                        style: GoogleFonts.poppins(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_rememberMe && _usernameController.text.isNotEmpty)
+              Text(
+                "Credenciales guardadas",
+                style: GoogleFonts.poppins(
+                  color: Colors.green,
+                  fontSize: 12,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -219,11 +407,18 @@ class _LoginPageState extends State<LoginPage> {
     String label,
     TextEditingController controller, {
     bool obscure = false,
+    FocusNode? focusNode,
+    String? Function(String?)? validator,
+    void Function(String)? onFieldSubmitted,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       obscureText: obscure,
+      focusNode: focusNode,
       style: const TextStyle(color: Colors.white),
+      validator: validator,
+      onFieldSubmitted: onFieldSubmitted,
+      textInputAction: obscure ? TextInputAction.done : TextInputAction.next,
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: Colors.white),
         labelText: label,
@@ -234,7 +429,22 @@ class _LoginPageState extends State<LoginPage> {
         focusedBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.white),
         ),
+        errorBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.red),
+        ),
+        focusedErrorBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.red),
+        ),
+        errorStyle: const TextStyle(color: Colors.red),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
   }
 }

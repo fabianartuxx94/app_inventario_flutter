@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/articulo_model.dart';
 import '../../services/articulo_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
+import '../../providers/auth_provider.dart'; // 👈 Añade esta importación
 
 class CrearArticuloScreen extends StatefulWidget {
-  final String token;
-  const CrearArticuloScreen({super.key, required this.token});
+  const CrearArticuloScreen({super.key}); // 👈 Quita el parámetro token
 
   @override
   State<CrearArticuloScreen> createState() => _CrearArticuloScreenState();
@@ -23,8 +24,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
   String _tipoBodega = 'Sistemas';
   String _tipo = 'activo_fijo';
-  // ignore: prefer_final_fields
-  String _imagenUrl = '';
+  final String _imagenUrl = '';
   bool _isLoading = false;
   File? _imagenSeleccionada;
 
@@ -41,13 +41,16 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 👇 Obtén el token del Provider
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      
       String imagenFinal = _imagenUrl;
 
       // Subir imagen si hay una seleccionada
       if (_imagenSeleccionada != null) {
         final uploadResult = await UploadService.uploadImage(
           _imagenSeleccionada!,
-          widget.token,
+          token, // 👈 Usa el token del Provider
           nombreArticulo: _nombreController.text.trim(),
           marca: _marcaController.text.trim(),
           referencia: _referenciaController.text.trim(),
@@ -76,7 +79,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
       final resultado = await ArticuloService.crearArticulo(
         nuevoArticulo,
-        widget.token,
+        token, // 👈 Usa el token del Provider
       );
 
       if (resultado['success'] == true) {
@@ -127,6 +130,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // 👇 Actualiza ImageUploader para que no requiera token
                     ImageUploader(
                       onImageSelected: (imageFile) {
                         setState(() {
@@ -134,7 +138,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                         });
                       },
                       currentImageUrl: _imagenUrl,
-                      token: widget.token,
                       nombreArticulo: _nombreController.text,
                       marca: _marcaController.text,
                       referencia: _referenciaController.text,
@@ -279,7 +282,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
-        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -318,7 +320,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
-        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

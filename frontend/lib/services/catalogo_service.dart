@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config/config.dart';
 
 class CatalogoService {
-  static const String _baseUrl ='${AppConfig.apiUrl}/catalogo'; // Url del servidor api Emulador Android
+  static const String _baseUrl = '${AppConfig.apiUrl}/catalogo';
 
   /// Obtener lista completa del catálogo
   static Future<List<Map<String, dynamic>>> getCatalogo(String token) async {
@@ -98,5 +98,24 @@ class CatalogoService {
     if (response.statusCode != 200) {
       throw Exception('Error al eliminar artículo');
     }
+  }
+
+  // Métodos adicionales para compatibilidad
+  static Future<Map<String, dynamic>> crearArticulo(
+      Map<String, dynamic> articulo, String token) async {
+    await guardarArticulo(articulo, token);
+    return {
+      'success': true,
+      'message': 'Artículo creado exitosamente',
+    };
+  }
+
+  static Future<Map<String, dynamic>> actualizarArticulo(
+      Map<String, dynamic> articulo, String token) async {
+    await guardarArticulo(articulo, token);
+    return {
+      'success': true,
+      'message': 'Artículo actualizado exitosamente',
+    };
   }
 }

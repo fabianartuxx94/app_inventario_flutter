@@ -1,149 +1,214 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../categorias/categorias_page.dart';
+import '../articulos/articulos_screen.dart';
+import '../login_page.dart';
 import '../../widgets/custom_background.dart';
 
-class DashboardScaffold extends StatelessWidget {
-  final Widget child;
-  final String title;
+class DashboardScaffold extends StatefulWidget {
+  const DashboardScaffold({super.key});
 
-  const DashboardScaffold({
-    super.key,
-    required this.child,
-    required this.title,
-  });
+  @override
+  State<DashboardScaffold> createState() => _DashboardScaffoldState();
+}
+
+class _DashboardScaffoldState extends State<DashboardScaffold> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = const [
+    DashboardHome(),
+    CatalogoPage(),
+    CatalogoScreen(),
+    Placeholder(), // Reportes
+    Placeholder(), // Configuración
+  ];
+
+  final List<String> _titles = [
+    "Dashboard",
+    "Categorías",
+    "Artículos",
+    "Reportes",
+    "Configuración",
+  ];
+
+  void _onItemSelected(int index) {
+    setState(() => _selectedIndex = index);
+  }
+
+  void _logout() {
+    Provider.of<AuthProvider>(context, listen: false).logout();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     return Scaffold(
-      drawer: isDesktop ? null : _buildDrawer(context),
       body: Stack(
         children: [
           const CustomBackground(),
           SafeArea(
-            child: Row(
-              children: [
-                if (isDesktop) _buildSidebar(context),
-                Expanded(
-                  child: Column(
+            child: isDesktop
+                ? Row(
                     children: [
-                      if (!isDesktop)
-                        AppBar(
-                          title: Text(title),
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          centerTitle: true,
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: child,
-                        ),
-                      ),
+                      _buildSidebar(),
+                      Expanded(child: _pages[_selectedIndex]),
                     ],
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : _buildMobileView(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      backgroundColor: const Color(0xFF001F5E),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        children: [
-          const ListTile(
-            leading: Icon(Icons.dashboard, color: Colors.white),
-            title: Text('Dashboard', style: TextStyle(color: Colors.white)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.category, color: Colors.white),
-            title: const Text('Catálogo', style: TextStyle(color: Colors.white)),
-            onTap: () {
-              Navigator.pop(context);
-              // Navegar a catálogo (implementa navegación)
-            },
-          ),
-          const Divider(color: Colors.white24),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.white),
-            title: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
-            onTap: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  // ---------------------- 🖥️ Sidebar escritorio ----------------------
+  Widget _buildSidebar() {
+    final items = [
+      ('Dashboard', Icons.dashboard),
+      ('Categorías', Icons.category),
+      ('Artículos', Icons.inventory),
+      ('Reportes', Icons.analytics),
+      ('Configuración', Icons.settings),
+    ];
 
-  Widget _buildSidebar(BuildContext context) {
     return Container(
-      width: 250,
-      color: const Color(0xFF001F5E),
+      width: 220,
+      color: const Color(0xFF001F5E).withOpacity(0.85),
       child: Column(
         children: [
           const SizedBox(height: 40),
+          const Icon(Icons.inventory, color: Colors.white, size: 40),
+          const SizedBox(height: 10),
           const Text(
-            'Inventario App',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+            "InventarioApp",
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          const SizedBox(height: 30),
+          for (int i = 0; i < items.length; i++)
+            ListTile(
+              leading: Icon(items[i].$2, color: Colors.white),
+              title: Text(
+                items[i].$1,
+                style: const TextStyle(color: Colors.white),
+              ),
+              selected: _selectedIndex == i,
+              selectedTileColor: Colors.white12,
+              onTap: () => _onItemSelected(i),
             ),
-          ),
-          const SizedBox(height: 40),
-          _SidebarItem(
-            icon: Icons.dashboard,
-            label: 'Dashboard',
-            onTap: () {
-              // Navega al dashboard
-            },
-          ),
-          _SidebarItem(
-            icon: Icons.category,
-            label: 'Catálogo',
-            onTap: () {
-              // Navega al catálogo
-            },
-          ),
           const Spacer(),
-          _SidebarItem(
-            icon: Icons.logout,
-            label: 'Cerrar sesión',
-            onTap: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
+          const Divider(color: Colors.white54),
+          ListTile(
+            leading: const Icon(Icons.person, color: Colors.white),
+            title: const Text(
+              "Cerrar sesión",
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: _logout,
           ),
           const SizedBox(height: 20),
         ],
       ),
     );
   }
+
+  // ---------------------- 📱 Vista móvil ----------------------
+  Widget _buildMobileView(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // color del ícono del menú
+        ),
+        title: Text(
+          _titles[_selectedIndex],
+          style: const TextStyle(
+            color: Colors.white, // color del texto del título
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            color: Colors.white, // color del ícono de logout
+            onPressed: _logout,
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
+        child: Column(
+          children: [
+            const SizedBox(height: 60),
+            const Icon(Icons.inventory, color: Colors.white, size: 40),
+            const SizedBox(height: 10),
+            const Text(
+              "InventarioApp",
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 20),
+            for (int i = 0; i < _titles.length; i++)
+              ListTile(
+                leading: Icon(
+                  [
+                    Icons.dashboard,
+                    Icons.category,
+                    Icons.inventory,
+                    Icons.analytics,
+                    Icons.settings
+                  ][i],
+                  color: Colors.white,
+                ),
+                title: Text(
+                  _titles[i],
+                  style: const TextStyle(color: Colors.white),
+                ),
+                selected: _selectedIndex == i,
+                selectedTileColor: Colors.white12,
+                onTap: () {
+                  Navigator.pop(context);
+                  _onItemSelected(i);
+                },
+              ),
+            const Spacer(),
+            const Divider(color: Colors.white54),
+            ListTile(
+              leading: const Icon(Icons.person, color: Colors.white),
+              title: const Text(
+                "Cerrar sesión",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: _logout,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+      body: _pages[_selectedIndex],
+    );
+  }
 }
 
-class _SidebarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SidebarItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+// ---------------------- 🏠 Pantalla principal ----------------------
+class DashboardHome extends StatelessWidget {
+  const DashboardHome({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(label, style: const TextStyle(color: Colors.white)),
-      onTap: onTap,
+    return const Center(
+      child: Text(
+        "Bienvenido al Panel de Inventario",
+        style: TextStyle(color: Colors.white, fontSize: 22),
+      ),
     );
   }
 }

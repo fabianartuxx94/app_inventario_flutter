@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
-import 'screens/catalogo/catalogo_page.dart';
+import 'package:provider/provider.dart';
 import 'screens/login_page.dart';
-import 'screens/dashboard/dashboard_page.dart';
-
+import 'providers/auth_provider.dart';
 
 void main() {
-  runApp(const InventarioApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const InventarioApp(),
+    ),
+  );
 }
 
 class InventarioApp extends StatelessWidget {
@@ -22,20 +28,7 @@ class InventarioApp extends StatelessWidget {
           seedColor: const Color.fromARGB(255, 9, 17, 136),
         ),
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const LoginPage(),
-        '/dashboard': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as String;
-          return DashboardPage(token: args);
-        },
-        '/catalogo': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as String;
-          return CatalogoPage(token: args);
-        },
-      },
+      home: const LoginPage(),
     );
   }
 }
-
-
