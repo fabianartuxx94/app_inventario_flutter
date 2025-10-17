@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/articulos/catalogo_screen.dart';
 import '../widgets/custom_background.dart';
 import 'catalogo_page.dart';
 
@@ -32,6 +33,7 @@ class DashboardPage extends StatelessWidget {
                       ),
                       CircleAvatar(
                         radius: 24,
+                        // ignore: deprecated_member_use
                         backgroundColor: Colors.white.withOpacity(0.2),
                         child: const Icon(Icons.person, color: Colors.white),
                       ),
@@ -46,7 +48,7 @@ class DashboardPage extends StatelessWidget {
                       children: [
                         _DashboardCard(
                           icon: Icons.category_rounded,
-                          title: 'Catálogo',
+                          title: 'Categorias',
                           color: const Color(0xFF2E8BFF),
                           onTap: () {
                             Navigator.push(
@@ -57,11 +59,19 @@ class DashboardPage extends StatelessWidget {
                             );
                           },
                         ),
-                        const _DashboardCard(
-                          icon: Icons.people_alt_rounded,
-                          title: 'Usuarios',
-                          color: Color(0xFF3EB489),
-                        ),
+                        _DashboardCard(
+  icon: Icons.inventory,
+  title: 'Artículos',
+  color: const Color(0xFF3EB489),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CatalogoScreen(token: token), // ← Pasar token
+      ),
+    );
+  },
+),
                         const _DashboardCard(
                           icon: Icons.analytics_rounded,
                           title: 'Reportes',
@@ -107,12 +117,14 @@ class _DashboardCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
+            // ignore: deprecated_member_use
             colors: [color.withOpacity(0.9), color.withOpacity(0.6)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: color.withOpacity(0.3),
               blurRadius: 12,
               offset: const Offset(4, 4),

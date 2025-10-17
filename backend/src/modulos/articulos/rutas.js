@@ -59,5 +59,18 @@ async function eliminar(req, res, next) {
     respuesta.error(req, res, error.message, 500);
   }
 }
+async function agregar(req, res, next) {
+  try {
+    console.log("🔄 DATOS COMPLETOS RECIBIDOS EN RUTA:");
+    console.log("   imagen_path recibido:", req.body.imagen_path);
+    console.log("   Todos los campos:", Object.keys(req.body));
+    
+    const data = await controlador.agregar(req.body);
+    respuesta.success(req, res, data, 201);
+  } catch (error) {
+    console.error("❌ ERROR en ruta agregar:", error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
 
 module.exports = router;

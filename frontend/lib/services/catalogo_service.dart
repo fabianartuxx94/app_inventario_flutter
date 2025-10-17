@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class CatalogoService {
   static const String _baseUrl =
-      'http://192.168.0.102:5000/api/catalogo'; // Emulador Android
+      'http://10.192.84.125:5000/api/catalogo'; // Emulador Android
 
   /// Obtener lista completa del catálogo
   static Future<List<Map<String, dynamic>>> getCatalogo(String token) async {
@@ -15,14 +16,18 @@ class CatalogoService {
       },
     );
 
-    print('📥 Status: ${response.statusCode}');
-    print('📩 Body: ${response.body}');
+    if (kDebugMode) {
+      print('📥 Status: ${response.statusCode}');
+    }
+    if (kDebugMode) {
+      print('📩 Body: ${response.body}');
+    }
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return List<Map<String, dynamic>>.from(data['body']);
     } else {
-      throw Exception('Error al obtener catálogo: ${response.statusCode}');
+      throw Exception('Error al obtener categorias: ${response.statusCode}');
     }
   }
 
@@ -48,10 +53,18 @@ class CatalogoService {
       body: jsonEncode(data),
     );
 
-    print('📤 POST $_baseUrl');
-    print('📦 Enviado: ${jsonEncode(data)}');
-    print('📥 Status: ${response.statusCode}');
-    print('📩 Body: ${response.body}');
+    if (kDebugMode) {
+      print('📤 POST $_baseUrl');
+    }
+    if (kDebugMode) {
+      print('📦 Enviado: ${jsonEncode(data)}');
+    }
+    if (kDebugMode) {
+      print('📥 Status: ${response.statusCode}');
+    }
+    if (kDebugMode) {
+      print('📩 Body: ${response.body}');
+    }
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('Error al crear o actualizar artículo');
@@ -69,10 +82,18 @@ class CatalogoService {
       body: jsonEncode({"id": id}),
     );
 
-    print('🗑️ DELETE $_baseUrl');
-    print('📦 ID: $id');
-    print('📥 Status: ${response.statusCode}');
-    print('📩 Body: ${response.body}');
+    if (kDebugMode) {
+      print('🗑️ DELETE $_baseUrl');
+    }
+    if (kDebugMode) {
+      print('📦 ID: $id');
+    }
+    if (kDebugMode) {
+      print('📥 Status: ${response.statusCode}');
+    }
+    if (kDebugMode) {
+      print('📩 Body: ${response.body}');
+    }
 
     if (response.statusCode != 200) {
       throw Exception('Error al eliminar artículo');

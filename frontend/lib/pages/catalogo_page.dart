@@ -28,6 +28,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
       setState(() => _catalogo = data);
     } catch (e) {
       ScaffoldMessenger.of(
+        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
@@ -102,6 +103,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
               } catch (e) {
                 // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(
+                  // ignore: use_build_context_synchronously
                   context,
                 ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
@@ -138,6 +140,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
         _cargarCatalogo();
       } catch (e) {
         ScaffoldMessenger.of(
+          // ignore: use_build_context_synchronously
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
@@ -174,6 +177,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                             itemBuilder: (context, index) {
                               final item = _catalogo[index];
                               return Card(
+                                // ignore: deprecated_member_use
                                 color: Colors.white.withOpacity(0.9),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),

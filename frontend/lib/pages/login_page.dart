@@ -54,6 +54,7 @@ class _LoginPageState extends State<LoginPage> {
               width: 350,
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
+                // ignore: deprecated_member_use
                 color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: Colors.white70),
@@ -148,6 +149,7 @@ class _LoginPageState extends State<LoginPage> {
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return Container(
+            // ignore: deprecated_member_use
             color: Colors.white.withOpacity(0.2),
             child: const Icon(
               Icons.business_center,
