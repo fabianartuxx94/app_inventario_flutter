@@ -2,6 +2,7 @@ const express = require("express");
 const morgan = require("morgan");
 const path = require("path");
 const fs = require("fs");
+const cors = require("./middleware/cors"); //
 const usuarios = require("./modulos/usuarios/rutas");
 const catalogo = require("./modulos/catalogo/rutas");
 const auth = require("./modulos/auth/rutas");
@@ -12,7 +13,11 @@ const error = require("./red/error");
 
 const app = express();
 
+// ✅ Aplica CORS personalizado (antes de cualquier ruta)
+app.use(cors);
+
 // middlewares
+
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

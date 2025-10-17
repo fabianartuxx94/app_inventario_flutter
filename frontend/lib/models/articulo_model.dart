@@ -1,3 +1,4 @@
+import '../config/config.dart';
 class Articulo {
   final int idGeneral;
   final String nombreArticulo;
@@ -61,9 +62,9 @@ factory Articulo.fromJson(Map<String, dynamic> json) {
     if (imagenPath.isEmpty) return '';
     if (imagenPath.startsWith('http')) return imagenPath;
     if (imagenPath.startsWith('/uploads/')) {
-      return 'http://10.192.84.125:5000$imagenPath';
+      return '${AppConfig.apiUrl}$imagenPath'; //'$AppConfig.Baseurl'+'$imagenPath';
     }
-    return 'http://10.192.84.125:5000/uploads/images/articulos/$imagenPath';
+    return '${AppConfig.apiUrl}/uploads/images/articulos/$imagenPath';//'http://10.192.84.125:5000/uploads/images/articulos/$imagenPath';
   }
 
   bool get esActivoFijo => tipo == 'activo_fijo';
@@ -86,6 +87,7 @@ factory Articulo.fromJson(Map<String, dynamic> json) {
   }
 
   String get infoResumen {
+    // ignore: unnecessary_brace_in_string_interps
     return '${tipoDisplay} • $tipoBodega • Stock Mín: $stockMinimo';
   }
 

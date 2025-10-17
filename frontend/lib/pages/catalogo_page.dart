@@ -27,49 +27,39 @@ class _CatalogoPageState extends State<CatalogoPage> {
       final data = await CatalogoService.getCatalogo(widget.token);
       setState(() => _catalogo = data);
     } catch (e) {
-      ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _cargando = false);
     }
   }
 
   Future<void> _mostrarFormulario({Map<String, dynamic>? articulo}) async {
-    final nombreController = TextEditingController(
-      text: articulo?['nombre_articulo'] ?? '',
-    );
+    final nombreController =
+        TextEditingController(text: articulo?['nombre_articulo'] ?? '');
     final stockController = TextEditingController(
-      text: articulo?['stock_minimo']?.toString() ?? '',
-    );
-    final descripcionController = TextEditingController(
-      text: articulo?['descripcion'] ?? '',
-    );
+        text: articulo?['stock_minimo']?.toString() ?? '');
+    final descripcionController =
+        TextEditingController(text: articulo?['descripcion'] ?? '');
 
     final isEdit = articulo != null;
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(
-          isEdit ? 'Editar artículo' : 'Nuevo artículo',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
+        title: Text(isEdit ? 'Editar artículo' : 'Nuevo artículo'),
         content: SingleChildScrollView(
           child: Column(
             children: [
               TextField(
                 controller: nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del artículo',
-                ),
+                decoration: const InputDecoration(labelText: 'Nombre'),
               ),
               TextField(
                 controller: stockController,
-                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'Stock mínimo'),
+                keyboardType: TextInputType.number,
               ),
               TextField(
                 controller: descripcionController,
@@ -80,11 +70,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
         ),
         actions: [
           TextButton(
-            child: const Text('Cancelar'),
             onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            child: Text(isEdit ? 'Actualizar' : 'Guardar'),
             onPressed: () async {
               final nuevoArticulo = {
                 "id": articulo?['id'] ?? 0,
@@ -94,20 +83,18 @@ class _CatalogoPageState extends State<CatalogoPage> {
               };
               try {
                 await CatalogoService.guardarArticulo(
-                  nuevoArticulo,
-                  widget.token,
-                );
-                // ignore: use_build_context_synchronously
+                    nuevoArticulo, widget.token);
+                if (!mounted) return;
                 Navigator.pop(context);
                 _cargarCatalogo();
               } catch (e) {
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(
-                  // ignore: use_build_context_synchronously
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
               }
             },
+            child: Text(isEdit ? 'Actualizar' : 'Guardar'),
           ),
         ],
       ),
@@ -115,11 +102,11 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   Future<void> _eliminarArticulo(int id) async {
-    final confirmar = await showDialog(
+    final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: const Text('¿Seguro que deseas eliminar este artículo?'),
+        title: const Text('¿Eliminar artículo?'),
+        content: const Text('Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -139,97 +126,185 @@ class _CatalogoPageState extends State<CatalogoPage> {
         await CatalogoService.eliminarArticulo(id, widget.token);
         _cargarCatalogo();
       } catch (e) {
-        ScaffoldMessenger.of(
-          // ignore: use_build_context_synchronously
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return Scaffold(
       body: Stack(
         children: [
           const CustomBackground(),
           SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                Text(
-                  'Catálogo de Artículos',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: _cargando
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          onRefresh: _cargarCatalogo,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _catalogo.length,
-                            itemBuilder: (context, index) {
-                              final item = _catalogo[index];
-                              return Card(
-                                // ignore: deprecated_member_use
-                                color: Colors.white.withOpacity(0.9),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: ListTile(
-                                  title: Text(
-                                    item['nombre_articulo'],
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'Stock mínimo: ${item['stock_minimo']}\n${item['descripcion']}',
-                                  ),
-                                  trailing: Wrap(
-                                    spacing: 8,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.blueAccent,
-                                        ),
-                                        onPressed: () =>
-                                            _mostrarFormulario(articulo: item),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () =>
-                                            _eliminarArticulo(item['id']),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Catálogo de Artículos',
+                          style: GoogleFonts.poppins(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                ),
-              ],
+                      ),
+                      if (isDesktop)
+                        ElevatedButton.icon(
+                          onPressed: () => _mostrarFormulario(),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Agregar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: _cargando
+                        ? const Center(child: CircularProgressIndicator())
+                        : _catalogo.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No hay artículos cargados',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _cargarCatalogo,
+                                child: isDesktop
+                                    ? _buildGridView()
+                                    : _buildListView(),
+                              ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.white,
-        label: const Text('Agregar', style: TextStyle(color: Colors.black)),
-        icon: const Icon(Icons.add, color: Colors.black),
-        onPressed: () => _mostrarFormulario(),
+      floatingActionButton: isDesktop
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _mostrarFormulario(),
+              label: const Text('Agregar'),
+              icon: const Icon(Icons.add),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+            ),
+    );
+  }
+
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 100),
+      itemCount: _catalogo.length,
+      itemBuilder: (context, index) {
+        final item = _catalogo[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          color: Colors.white.withOpacity(0.9),
+          child: ListTile(
+            title: Text(
+              item['nombre_articulo'],
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'Stock mínimo: ${item['stock_minimo']}\n${item['descripcion']}',
+            ),
+            trailing: Wrap(
+              spacing: 8,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _mostrarFormulario(articulo: item),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _eliminarArticulo(item['id']),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridView() {
+    return GridView.builder(
+      itemCount: _catalogo.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+        childAspectRatio: 3,
       ),
+      itemBuilder: (context, index) {
+        final item = _catalogo[index];
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.inventory, size: 40, color: Colors.blueAccent),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item['nombre_articulo'],
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text('Stock mínimo: ${item['stock_minimo']}'),
+                    Text(item['descripcion']),
+                  ],
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () => _mostrarFormulario(articulo: item),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _eliminarArticulo(item['id']),
+                  ),
+                ],
+              )
+            ],
+          ),
+        );
+      },
     );
   }
 }
+

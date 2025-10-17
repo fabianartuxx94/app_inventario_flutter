@@ -17,6 +17,7 @@ class CatalogoScreen extends StatefulWidget {
 }
 
 class _CatalogoScreenState extends State<CatalogoScreen> {
+  // ignore: unused_field
   List<Articulo> _articulos = [];
   List<Articulo> _articulosFiltrados = [];
   bool _isLoading = true;
@@ -76,6 +77,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
       );
       
       if (resultado['success'] == true) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(resultado['message']!),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/articulo_model.dart';
 import '../config/config.dart';
@@ -9,7 +10,9 @@ class ArticuloService {
   // OBTENER TODOS LOS ARTÍCULOS
   static Future<List<Articulo>> obtenerArticulos(String token) async {
     try {
-      print('🔍 Solicitando artículos desde: $baseUrl/articulos/');
+      if (kDebugMode) {
+        print('🔍 Solicitando artículos desde: $baseUrl/articulos/');
+      }
       
       final response = await http.get(
         Uri.parse('$baseUrl/articulos/'),
@@ -19,14 +22,18 @@ class ArticuloService {
         },
       );
 
-      print('📊 Respuesta del servidor - Status: ${response.statusCode}');
+      if (kDebugMode) {
+        print('📊 Respuesta del servidor - Status: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
         if (data['body'] != null && data['body'] is List) {
           final articulosList = data['body'] as List;
-          print('✅ Se obtuvieron ${articulosList.length} artículos desde "body"');
+          if (kDebugMode) {
+            print('✅ Se obtuvieron ${articulosList.length} artículos desde "body"');
+          }
           
           final articulos = articulosList.map((item) {
             return Articulo.fromJson(Map<String, dynamic>.from(item));
@@ -34,15 +41,21 @@ class ArticuloService {
           
           return articulos;
         } else {
-          print('⚠️  La respuesta no contiene "body" con datos');
+          if (kDebugMode) {
+            print('⚠️  La respuesta no contiene "body" con datos');
+          }
           return [];
         }
       } else {
-        print('❌ Error HTTP: ${response.statusCode}');
+        if (kDebugMode) {
+          print('❌ Error HTTP: ${response.statusCode}');
+        }
         throw Exception('Error al obtener artículos: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error obteniendo artículos: $e');
+      if (kDebugMode) {
+        print('❌ Error obteniendo artículos: $e');
+      }
       throw Exception('Error de conexión: $e');
     }
   }
@@ -50,7 +63,9 @@ class ArticuloService {
   // CREAR NUEVO ARTÍCULO
   static Future<Map<String, dynamic>> crearArticulo(Articulo articulo, String token) async {
     try {
-      print('🆕 Creando nuevo artículo...');
+      if (kDebugMode) {
+        print('🆕 Creando nuevo artículo...');
+      }
       
       final response = await http.post(
         Uri.parse('$baseUrl/articulos/'),
@@ -62,7 +77,9 @@ class ArticuloService {
       );
 
       final data = jsonDecode(response.body);
-      print('📊 Respuesta creación - Status: ${response.statusCode}');
+      if (kDebugMode) {
+        print('📊 Respuesta creación - Status: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseBody = data['body'] ?? data;
@@ -79,7 +96,9 @@ class ArticuloService {
         };
       }
     } catch (e) {
-      print('❌ Error creando artículo: $e');
+      if (kDebugMode) {
+        print('❌ Error creando artículo: $e');
+      }
       return {
         'success': false,
         'error': 'Error de conexión: $e',
@@ -90,13 +109,21 @@ class ArticuloService {
   // ACTUALIZAR ARTÍCULO EXISTENTE - CORREGIDO (POST en lugar de PUT)
 static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String token) async {
   try {
-    print('✏️ Actualizando artículo ID: ${articulo.idCatalogo}');
+    if (kDebugMode) {
+      print('✏️ Actualizando artículo ID: ${articulo.idCatalogo}');
+    }
     
     // ✅ VERIFICAR QUE imagen_path ESTÉ INCLUIDO
     final datos = articulo.toJson();
-    print('📦 DATOS COMPLETOS A ENVIAR:');
-    print('   imagen_path: ${datos['imagen_path']}');
-    print('   Todos los campos: $datos');
+    if (kDebugMode) {
+      print('📦 DATOS COMPLETOS A ENVIAR:');
+    }
+    if (kDebugMode) {
+      print('   imagen_path: ${datos['imagen_path']}');
+    }
+    if (kDebugMode) {
+      print('   Todos los campos: $datos');
+    }
     
     final response = await http.post(
       Uri.parse('$baseUrl/articulos/'),
@@ -108,7 +135,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
     );
 
     final data = jsonDecode(response.body);
-    print('📊 Respuesta actualización - Status: ${response.statusCode}');
+    if (kDebugMode) {
+      print('📊 Respuesta actualización - Status: ${response.statusCode}');
+    }
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseBody = data['body'] ?? data;
@@ -125,7 +154,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
       };
     }
   } catch (e) {
-    print('❌ Error actualizando artículo: $e');
+    if (kDebugMode) {
+      print('❌ Error actualizando artículo: $e');
+    }
     return {
       'success': false,
       'error': 'Error de conexión: $e',
@@ -136,7 +167,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
   // ELIMINAR ARTÍCULO
   static Future<Map<String, dynamic>> eliminarArticulo(int idCatalogo, String token) async {
     try {
-      print('🗑️ Eliminando artículo ID: $idCatalogo');
+      if (kDebugMode) {
+        print('🗑️ Eliminando artículo ID: $idCatalogo');
+      }
       
       final response = await http.delete(
         Uri.parse('$baseUrl/articulos/$idCatalogo'),
@@ -147,7 +180,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
       );
 
       final data = jsonDecode(response.body);
-      print('📊 Respuesta eliminación - Status: ${response.statusCode}');
+      if (kDebugMode) {
+        print('📊 Respuesta eliminación - Status: ${response.statusCode}');
+      }
 
       if (response.statusCode == 200) {
         final responseBody = data['body'] ?? data;
@@ -162,7 +197,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
         };
       }
     } catch (e) {
-      print('❌ Error eliminando artículo: $e');
+      if (kDebugMode) {
+        print('❌ Error eliminando artículo: $e');
+      }
       return {
         'success': false,
         'error': 'Error de conexión: $e',
@@ -173,7 +210,9 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
   // OBTENER ARTÍCULO POR ID
   static Future<Articulo?> obtenerArticuloPorId(int idCatalogo, String token) async {
     try {
-      print('🔍 Obteniendo artículo por ID: $idCatalogo');
+      if (kDebugMode) {
+        print('🔍 Obteniendo artículo por ID: $idCatalogo');
+      }
       
       final response = await http.get(
         Uri.parse('$baseUrl/articulos/$idCatalogo'),
@@ -188,18 +227,26 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
       if (response.statusCode == 200) {
         final articuloData = data['body'] ?? data;
         if (articuloData != null && articuloData is Map) {
-          print('✅ Artículo obtenido correctamente');
+          if (kDebugMode) {
+            print('✅ Artículo obtenido correctamente');
+          }
           return Articulo.fromJson(Map<String, dynamic>.from(articuloData));
         } else {
-          print('⚠️  No se encontró el artículo');
+          if (kDebugMode) {
+            print('⚠️  No se encontró el artículo');
+          }
           return null;
         }
       } else {
-        print('❌ Error obteniendo artículo: ${response.statusCode}');
+        if (kDebugMode) {
+          print('❌ Error obteniendo artículo: ${response.statusCode}');
+        }
         return null;
       }
     } catch (e) {
-      print('❌ Error obteniendo artículo por ID: $e');
+      if (kDebugMode) {
+        print('❌ Error obteniendo artículo por ID: $e');
+      }
       return null;
     }
   }

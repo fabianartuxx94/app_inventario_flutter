@@ -23,6 +23,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
   String _tipoBodega = 'Sistemas';
   String _tipo = 'activo_fijo';
+  // ignore: prefer_final_fields
   String _imagenUrl = '';
   bool _isLoading = false;
   File? _imagenSeleccionada;
@@ -79,17 +80,20 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
       );
 
       if (resultado['success'] == true) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(resultado['message']!),
             backgroundColor: Colors.green,
           ),
         );
+        // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
       } else {
         throw Exception(resultado['error']);
       }
     } catch (e) {
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -275,6 +279,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
+        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -299,7 +304,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       dropdownColor: const Color(0xFF2d3748),
       style: const TextStyle(color: Colors.white),
       onChanged: onChanged,
@@ -313,6 +318,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
+        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

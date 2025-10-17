@@ -1,3 +1,6 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import '../../models/articulo_model.dart';
@@ -60,18 +63,32 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     setState(() => _isLoading = true);
 
     try {
-      print('🔄 INICIANDO ACTUALIZACIÓN DE ARTÍCULO');
-      print('📝 Datos del formulario:');
-      print('   • Nombre: ${_nombreController.text.trim()}');
-      print('   • Marca: ${_marcaController.text.trim()}');
-      print('   • Referencia: ${_referenciaController.text.trim()}');
-      print('   • Tiene nueva imagen: ${_nuevaImagenSeleccionada != null}');
+      if (kDebugMode) {
+        print('🔄 INICIANDO ACTUALIZACIÓN DE ARTÍCULO');
+      }
+      if (kDebugMode) {
+        print('📝 Datos del formulario:');
+      }
+      if (kDebugMode) {
+        print('   • Nombre: ${_nombreController.text.trim()}');
+      }
+      if (kDebugMode) {
+        print('   • Marca: ${_marcaController.text.trim()}');
+      }
+      if (kDebugMode) {
+        print('   • Referencia: ${_referenciaController.text.trim()}');
+      }
+      if (kDebugMode) {
+        print('   • Tiene nueva imagen: ${_nuevaImagenSeleccionada != null}');
+      }
 
       String? nuevaImagenUrl;
 
       // Subir nueva imagen si existe
       if (_nuevaImagenSeleccionada != null) {
-        print('🖼️ Subiendo NUEVA imagen con datos reales...');
+        if (kDebugMode) {
+          print('🖼️ Subiendo NUEVA imagen con datos reales...');
+        }
         
         final uploadResult = await UploadService.uploadImage(
           _nuevaImagenSeleccionada!,
@@ -83,10 +100,17 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
 
         if (uploadResult['success']) {
           nuevaImagenUrl = uploadResult['imageUrl'];
-          print('✅ Imagen subida exitosamente: $nuevaImagenUrl');
-          print('   📄 Nombre del archivo: ${uploadResult['filename']}');
+          if (kDebugMode) {
+            print('✅ Imagen subida exitosamente: $nuevaImagenUrl');
+          }
+          if (kDebugMode) {
+            print('   📄 Nombre del archivo: ${uploadResult['filename']}');
+          }
         } else {
-          print('❌ Error subiendo imagen: ${uploadResult['error']}');
+          if (kDebugMode) {
+            print('❌ Error subiendo imagen: ${uploadResult['error']}');
+          }
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error subiendo imagen: ${uploadResult['error']}'),
@@ -111,14 +135,18 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         imagenPath: nuevaImagenUrl ?? _imagenUrl,
       );
 
-      print('💾 Guardando artículo en BD...');
+      if (kDebugMode) {
+        print('💾 Guardando artículo en BD...');
+      }
       final resultado = await ArticuloService.actualizarArticulo(
         articuloActualizado, 
         widget.token
       );
 
       if (resultado['success'] == true) {
-        print('✅ Artículo actualizado exitosamente en BD');
+        if (kDebugMode) {
+          print('✅ Artículo actualizado exitosamente en BD');
+        }
         
         if (nuevaImagenUrl != null) {
           setState(() {
@@ -126,6 +154,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
           });
         }
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ ${resultado['message']}'),
@@ -135,9 +164,13 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         );
         
         await Future.delayed(const Duration(milliseconds: 1500));
+        // ignore: use_build_context_synchronously
         Navigator.of(context).pop(true);
       } else {
-        print('❌ Error guardando artículo: ${resultado['error']}');
+        if (kDebugMode) {
+          print('❌ Error guardando artículo: ${resultado['error']}');
+        }
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: ${resultado['error']}'),
@@ -147,7 +180,10 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         );
       }
     } catch (e) {
-      print('💥 ERROR CRÍTICO: $e');
+      if (kDebugMode) {
+        print('💥 ERROR CRÍTICO: $e');
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Error al actualizar: $e'),
@@ -161,10 +197,15 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
   }
 
   void _probarDiagnostico() async {
-    print('🔍 Ejecutando diagnóstico...');
+    if (kDebugMode) {
+      print('🔍 Ejecutando diagnóstico...');
+    }
     final resultado = await UploadService.diagnostic(widget.token);
-    print('📊 Resultado diagnóstico: $resultado');
+    if (kDebugMode) {
+      print('📊 Resultado diagnóstico: $resultado');
+    }
     
+    // ignore: use_build_context_synchronously
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Diagnóstico: ${resultado['success'] ? 'Éxito' : 'Error'}'),
@@ -252,7 +293,9 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                         setState(() {
                           _nuevaImagenSeleccionada = imageFile;
                         });
-                        print('📸 Nueva imagen seleccionada para subir al guardar: ${imageFile.path}');
+                        if (kDebugMode) {
+                          print('📸 Nueva imagen seleccionada para subir al guardar: ${imageFile.path}');
+                        }
                       },
                       currentImageUrl: _imagenUrl,
                       token: widget.token,
@@ -395,6 +438,8 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                             const SizedBox(height: 4),
                             Text(
                               '${_nombreController.text.isNotEmpty ? _nombreController.text : "articulo"}_'
+                              // ignore: duplicate_ignore
+                              // ignore: prefer_interpolation_to_compose_strings
                               '${_marcaController.text.isNotEmpty ? _marcaController.text + "_" : ""}'
                               '${_referenciaController.text.isNotEmpty ? _referenciaController.text + "_" : ""}'
                               'timestamp.jpg',
@@ -460,6 +505,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
+        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -492,7 +538,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value.isNotEmpty ? value : null,
+      initialValue: value.isNotEmpty ? value : null,
       dropdownColor: const Color(0xFF2d3748),
       style: const TextStyle(color: Colors.white),
       onChanged: onChanged,
@@ -506,6 +552,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
         filled: true,
+        // ignore: deprecated_member_use
         fillColor: const Color(0xFF474554).withOpacity(0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

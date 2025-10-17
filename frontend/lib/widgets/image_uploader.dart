@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -54,9 +55,14 @@ class _ImageUploaderState extends State<ImageUploader> {
           _selectedImage = imageFile;
         });
 
-        print('📸 Imagen seleccionada: ${imageFile.path}');
-        print('⏳ Lista para subir al guardar el artículo');
+        if (kDebugMode) {
+          print('📸 Imagen seleccionada: ${imageFile.path}');
+        }
+        if (kDebugMode) {
+          print('⏳ Lista para subir al guardar el artículo');
+        }
         
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('📸 Imagen seleccionada - Se subirá al guardar'),
@@ -66,7 +72,10 @@ class _ImageUploaderState extends State<ImageUploader> {
         );
       }
     } catch (e) {
-      print('💥 Error seleccionando imagen: $e');
+      if (kDebugMode) {
+        print('💥 Error seleccionando imagen: $e');
+      }
+      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Error: $e'),
@@ -153,6 +162,7 @@ class _ImageUploaderState extends State<ImageUploader> {
               child: Container(
                 padding: EdgeInsets.all(4),
                 decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
                   color: Colors.red.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),
@@ -238,6 +248,7 @@ class _ImageUploaderState extends State<ImageUploader> {
               child: Container(
                 padding: EdgeInsets.all(4),
                 decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
                   color: Colors.red.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),

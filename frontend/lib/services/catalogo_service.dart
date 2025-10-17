@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/config.dart';
 
 class CatalogoService {
-  static const String _baseUrl =
-      'http://10.192.84.125:5000/api/catalogo'; // Emulador Android
+  static const String _baseUrl ='${AppConfig.apiUrl}/catalogo'; // Url del servidor api Emulador Android
 
   /// Obtener lista completa del catálogo
   static Future<List<Map<String, dynamic>>> getCatalogo(String token) async {

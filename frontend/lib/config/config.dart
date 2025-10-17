@@ -1,4 +1,6 @@
 // lib/config/config.dart
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   static const String serverIp = '10.192.84.125';
   static const int serverPort = 5000;
@@ -10,10 +12,20 @@ class AppConfig {
   
   // Método para mostrar configuración actual
   static void printConfig() {
-    print('⚙️ CONFIGURACIÓN ACTUAL:');
-    print('   • Servidor: $serverIp:$serverPort');
-    print('   • URL Base: $baseUrl');
-    print('   • API: $apiUrl');
-    print('   • Uploads: $uploadsUrl');
+    if (kDebugMode) {
+      print('⚙️ CONFIGURACIÓN ACTUAL:');
+    }
+    if (kDebugMode) {
+      print('   • Servidor: $serverIp:$serverPort');
+    }
+    if (kDebugMode) {
+      print('   • URL Base: $baseUrl');
+    }
+    if (kDebugMode) {
+      print('   • API: $apiUrl');
+    }
+    if (kDebugMode) {
+      print('   • Uploads: $uploadsUrl');
+    }
   }
 }

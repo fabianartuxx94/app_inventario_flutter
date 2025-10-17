@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/config.dart';
 
 class ApiService {
-  static const _baseUrl = 'http://10.192.84.125:5000/api/auth/login';
+  static const _baseUrl = '${AppConfig.apiUrl}/auth/login';//'http://10.192.84.125:5000/api/auth/login';
 
   static Future<String?> login(String username, String password) async {
     try {
