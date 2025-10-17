@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/articulos/catalogo_screen.dart';
-import '../widgets/custom_background.dart';
-import 'catalogo_page.dart';
-import '../widgets/responsive_layout.dart';
+import '../../widgets/custom_background.dart';
+import '../catalogo/catalogo_page.dart';
+import '../../widgets/responsive_layout.dart';
 
 class DashboardPage extends StatelessWidget {
   final String token;

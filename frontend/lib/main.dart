@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'pages/login_page.dart';
+import 'screens/catalogo/catalogo_page.dart';
+import 'screens/login_page.dart';
+import 'screens/dashboard/dashboard_page.dart';
+
 
 void main() {
   runApp(const InventarioApp());
@@ -15,10 +18,24 @@ class InventarioApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Poppins',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 9, 17, 136)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 9, 17, 136),
+        ),
       ),
-      home: const LoginPage(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginPage(),
+        '/dashboard': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as String;
+          return DashboardPage(token: args);
+        },
+        '/catalogo': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as String;
+          return CatalogoPage(token: args);
+        },
+      },
     );
   }
 }
+
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/custom_background.dart';
 import '../services/api_service.dart';
-import 'dashboard_page.dart';
+import 'dashboard/dashboard_page.dart';
 import '../widgets/responsive_layout.dart';  // No olvides importar el ResponsiveLayout
 
 class LoginPage extends StatefulWidget {
