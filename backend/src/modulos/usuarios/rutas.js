@@ -9,6 +9,11 @@ router.get("/:id", verificarToken, permitirRoles("administrador"), uno);
 router.post("/", verificarToken, permitirRoles("administrador"), agregar);
 router.put("/", verificarToken, permitirRoles("administrador"), eliminar);
 
+/*router.get("/", todos);
+router.get("/:id",  uno);
+router.post("/",  agregar);
+router.put("/",  eliminar);*/
+
 async function todos(req, res, next) {
   try {
     const items = await controlador.todos();

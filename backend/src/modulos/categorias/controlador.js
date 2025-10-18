@@ -1,4 +1,4 @@
-const TABLA = "articulos_generales";
+const TABLA = "categorias";
 
 module.exports = function (dbInyectada) {
   let db = dbInyectada;

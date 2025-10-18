@@ -1,14 +1,22 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 import '../../models/articulo_model.dart';
-import '../../services/articulo_service.dart';
+import '../../services/articulos_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
-import '../../providers/auth_provider.dart'; // 👈 Añade esta importación
+import '../../widgets/custom_background.dart';
+import '../../providers/auth_provider.dart';
 
 class CrearArticuloScreen extends StatefulWidget {
-  const CrearArticuloScreen({super.key}); // 👈 Quita el parámetro token
+  final VoidCallback? onArticuloCreado;
+  final VoidCallback? onCancelar;
+
+  const CrearArticuloScreen({
+    super.key,
+    this.onArticuloCreado,
+    this.onCancelar,
+  });
 
   @override
   State<CrearArticuloScreen> createState() => _CrearArticuloScreenState();
@@ -16,252 +24,686 @@ class CrearArticuloScreen extends StatefulWidget {
 
 class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nombreController = TextEditingController();
-  final _marcaController = TextEditingController();
   final _referenciaController = TextEditingController();
-  final _descripcionController = TextEditingController();
-  final _stockMinimoController = TextEditingController(text: '0');
+  final _ubicacionBodegaController = TextEditingController();
 
   String _tipoBodega = 'Sistemas';
-  String _tipo = 'activo_fijo';
-  final String _imagenUrl = '';
-  bool _isLoading = false;
+  String _tipoArticulo = 'Activo Fijo';
   File? _imagenSeleccionada;
+  bool _isLoading = false;
+  bool _cargandoCategorias = true;
+  bool _cargandoMarcas = true;
+
+  // Listas para dropdowns
+  List<dynamic> _categorias = [];
+  List<dynamic> _marcas = [];
+  
+  // Valores seleccionados
+  int? _categoriaId;
+  int? _marcaId;
+  
+  // Búsqueda de categorías
+  final TextEditingController _categoriaSearchController = TextEditingController();
+  List<dynamic> _categoriasFiltradas = [];
+  bool _mostrarCrearCategoria = false;
+  bool _mostrarListaCategorias = false;
+
+  // Búsqueda de marcas
+  final TextEditingController _marcaSearchController = TextEditingController();
+  List<dynamic> _marcasFiltradas = [];
+  bool _mostrarCrearMarca = false;
+  bool _mostrarListaMarcas = false;
 
   final List<Map<String, String>> _tiposArticulo = [
-    {'value': 'activo_fijo', 'label': 'Activo Fijo'},
-    {'value': 'activo_control', 'label': 'Activo Control'},
-    {'value': 'consumible', 'label': 'Consumible'},
+    {'value': 'Activo Fijo', 'label': 'Activo Fijo'},
+    {'value': 'Activo de Control', 'label': 'Activo de Control'},
+    {'value': 'Consumible', 'label': 'Consumible'},
   ];
+
   final List<String> _bodegas = ['Sistemas', 'Bmd'];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatosIniciales();
+    _categoriaSearchController.addListener(_filtrarCategorias);
+    _marcaSearchController.addListener(_filtrarMarcas);
+  }
+
+  @override
+  void dispose() {
+    _categoriaSearchController.dispose();
+    _marcaSearchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarDatosIniciales() async {
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      final categorias = await ArticuloService.obtenerCategorias(token);
+      final marcas = await ArticuloService.obtenerMarcas(token);
+      
+      setState(() {
+        _categorias = categorias;
+        _marcas = marcas;
+        _categoriasFiltradas = [];
+        _marcasFiltradas = [];
+        _cargandoCategorias = false;
+        _cargandoMarcas = false;
+      });
+    } catch (e) {
+      setState(() {
+        _cargandoCategorias = false;
+        _cargandoMarcas = false;
+      });
+      _mostrarError('Error al cargar datos: $e');
+    }
+  }
+
+  // MÉTODOS FALTANTES - AGREGAR AQUÍ
+
+  String _getNombreCategoria() {
+    if (_categoriaId == null) return '';
+    try {
+      final categoria = _categorias.firstWhere(
+        (c) => (c['id'] as int) == _categoriaId,
+      );
+      return categoria['nombre']?.toString() ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String _getNombreMarca() {
+    if (_marcaId == null) return '';
+    try {
+      final marca = _marcas.firstWhere(
+        (m) => (m['id'] as int) == _marcaId,
+      );
+      return marca['nombre']?.toString() ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  void _crearNuevaCategoria() async {
+    final nombreCategoria = _categoriaSearchController.text.trim();
+    if (nombreCategoria.isEmpty) return;
+
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      
+      final Map<String, dynamic> nuevaCategoria = {
+        'id': DateTime.now().millisecondsSinceEpoch,
+        'nombre': nombreCategoria,
+        'stock_minimo': 0,
+        'etiquetas': '[]'
+      };
+
+      setState(() {
+        _categorias.insert(0, nuevaCategoria);
+        _categoriaId = nuevaCategoria['id'] as int;
+        _categoriaSearchController.text = nombreCategoria;
+        _mostrarCrearCategoria = false;
+        _mostrarListaCategorias = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Categoría "$nombreCategoria" creada'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _mostrarError('Error al crear categoría: $e');
+    }
+  }
+
+  void _crearNuevaMarca() async {
+    final nombreMarca = _marcaSearchController.text.trim();
+    if (nombreMarca.isEmpty) return;
+
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      
+      final Map<String, dynamic> nuevaMarca = {
+        'id': DateTime.now().millisecondsSinceEpoch,
+        'nombre': nombreMarca,
+      };
+
+      setState(() {
+        _marcas.insert(0, nuevaMarca);
+        _marcaId = nuevaMarca['id'] as int;
+        _marcaSearchController.text = nombreMarca;
+        _mostrarCrearMarca = false;
+        _mostrarListaMarcas = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Marca "$nombreMarca" creada'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _mostrarError('Error al crear marca: $e');
+    }
+  }
+
+  void _filtrarCategorias() {
+    final query = _categoriaSearchController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _categoriasFiltradas = [];
+        _mostrarCrearCategoria = false;
+        _mostrarListaCategorias = false;
+      });
+      return;
+    }
+
+    final categoriasFiltradas = _categorias.where((categoria) {
+      final nombre = categoria['nombre'].toString().toLowerCase();
+      return nombre.contains(query);
+    }).toList();
+
+    final existeCategoria = _categorias.any((categoria) =>
+        categoria['nombre'].toString().toLowerCase() == query);
+
+    setState(() {
+      _categoriasFiltradas = categoriasFiltradas;
+      _mostrarCrearCategoria = !existeCategoria && query.isNotEmpty;
+      _mostrarListaCategorias = true;
+    });
+  }
+
+  void _filtrarMarcas() {
+    final query = _marcaSearchController.text.toLowerCase();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _marcasFiltradas = [];
+        _mostrarCrearMarca = false;
+        _mostrarListaMarcas = false;
+      });
+      return;
+    }
+
+    final marcasFiltradas = _marcas.where((marca) {
+      final nombre = marca['nombre'].toString().toLowerCase();
+      return nombre.contains(query);
+    }).toList();
+
+    final existeMarca = _marcas.any((marca) =>
+        marca['nombre'].toString().toLowerCase() == query);
+
+    setState(() {
+      _marcasFiltradas = marcasFiltradas;
+      _mostrarCrearMarca = !existeMarca && query.isNotEmpty;
+      _mostrarListaMarcas = true;
+    });
+  }
 
   Future<void> _crearArticulo() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_categoriaId == null) {
+      _mostrarError('Por favor selecciona una categoría');
+      return;
+    }
+    if (_marcaId == null) {
+      _mostrarError('Por favor selecciona una marca');
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      // 👇 Obtén el token del Provider
       final token = Provider.of<AuthProvider>(context, listen: false).token!;
-      
-      String imagenFinal = _imagenUrl;
+      String? imagenUrl;
 
-      // Subir imagen si hay una seleccionada
       if (_imagenSeleccionada != null) {
+        final nombreCategoria = _getNombreCategoria();
+        final nombreMarca = _getNombreMarca();
+        
         final uploadResult = await UploadService.uploadImage(
           _imagenSeleccionada!,
-          token, // 👈 Usa el token del Provider
-          nombreArticulo: _nombreController.text.trim(),
-          marca: _marcaController.text.trim(),
+          token,
+          nombreArticulo: nombreCategoria,
+          marca: nombreMarca,
           referencia: _referenciaController.text.trim(),
         );
-        
         if (uploadResult['success']) {
-          imagenFinal = uploadResult['imageUrl']!;
-        } else {
-          throw Exception(uploadResult['error']);
+          imagenUrl = uploadResult['imageUrl'];
         }
       }
 
       final nuevoArticulo = Articulo(
-        idGeneral: 0,
-        nombreArticulo: _nombreController.text.trim(),
-        stockMinimo: int.tryParse(_stockMinimoController.text) ?? 0,
-        descripcionGeneral: _descripcionController.text.trim(),
-        idCatalogo: 0,
-        marca: _marcaController.text.trim(),
+        categoriaId: _categoriaId!,
+        categoriaNombre: _getNombreCategoria(),
+        marcaId: _marcaId!,
+        marcaNombre: _getNombreMarca(),
         referencia: _referenciaController.text.trim(),
         tipoBodega: _tipoBodega,
-        tipo: _tipo,
-        descripcionCatalogo: _descripcionController.text.trim(),
-        imagenPath: imagenFinal,
+        tipoArticulo: _tipoArticulo,
+        ubicacionBodega: _ubicacionBodegaController.text.trim(),
+        imagenPath: imagenUrl,
+        stockMinimo: 0,
+        etiquetas: '[]',
       );
 
-      final resultado = await ArticuloService.crearArticulo(
-        nuevoArticulo,
-        token, // 👈 Usa el token del Provider
-      );
-
+      final resultado = await ArticuloService.crearArticulo(nuevoArticulo, token);
+      
       if (resultado['success'] == true) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(resultado['message']!),
-            backgroundColor: Colors.green,
+            content: Text('✅ ${resultado['message']}'), 
+            backgroundColor: Colors.green
           ),
         );
-        // ignore: use_build_context_synchronously
-        Navigator.of(context).pop();
+        
+        if (widget.onArticuloCreado != null) {
+          widget.onArticuloCreado!();
+        }
       } else {
-        throw Exception(resultado['error']);
+        _mostrarError(resultado['error'] ?? 'Error al crear el artículo');
       }
     } catch (e) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _mostrarError('Error al crear artículo: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
+  // FIN DE MÉTODOS FALTANTES
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0f1422),
-      appBar: AppBar(
-        title: const Text('Crear Nuevo Artículo'),
-        backgroundColor: const Color(0xFF0948d6),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isLoading ? null : _crearArticulo,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    // 👇 Actualiza ImageUploader para que no requiera token
-                    ImageUploader(
-                      onImageSelected: (imageFile) {
-                        setState(() {
-                          _imagenSeleccionada = imageFile;
-                        });
-                      },
-                      currentImageUrl: _imagenUrl,
-                      nombreArticulo: _nombreController.text,
-                      marca: _marcaController.text,
-                      referencia: _referenciaController.text,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildTextField(
-                      controller: _nombreController,
-                      label: 'Nombre del Artículo',
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'El nombre es requerido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _marcaController,
-                            label: 'Marca',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'La marca es requerida';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _referenciaController,
-                            label: 'Referencia/Modelo',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'La referencia es requerida';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdown(
-                            value: _tipo,
-                            items: _tiposArticulo,
-                            label: 'Tipo de Artículo',
-                            onChanged: (value) {
-                              setState(() {
-                                _tipo = value!;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDropdown(
-                            value: _tipoBodega,
-                            items: _bodegas
-                                .map((bodega) => {
-                                      'value': bodega,
-                                      'label': bodega,
-                                    })
-                                .toList(),
-                            label: 'Bodega',
-                            onChanged: (value) {
-                              setState(() {
-                                _tipoBodega = value!;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _stockMinimoController,
-                      label: 'Stock Mínimo',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _descripcionController,
-                      label: 'Descripción',
-                      maxLines: 4,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'La descripción es requerida';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _crearArticulo,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10b981),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Crear Artículo',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+    final isWide = MediaQuery.of(context).size.width > 800;
+
+    return Stack(
+      children: [
+        const CustomBackground(),
+        
+        Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con botón de volver
+              _buildHeader(),
+              const SizedBox(height: 20),
+              
+              Expanded(
+                child: _cargandoCategorias || _cargandoMarcas || _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
+                      )
+                    : SingleChildScrollView(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            child: Card(
+                              color: const Color(0xFF1a1f2e).withOpacity(0.9),
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    children: [
+                                      ImageUploader(
+                                        onImageSelected: (imageFile) {
+                                          setState(() => _imagenSeleccionada = imageFile);
+                                        },
+                                        nombreArticulo: _getNombreCategoria(),
+                                        marca: _getNombreMarca(),
+                                        referencia: _referenciaController.text,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return Wrap(
+                                            spacing: 16,
+                                            runSpacing: 16,
+                                            children: [
+                                              // Búsqueda de categoría
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildCategoriaSearch(),
+                                              ),
+                                              // Búsqueda de marca
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildMarcaSearch(),
+                                              ),
+                                              // Referencia
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildTextField(
+                                                  controller: _referenciaController,
+                                                  label: 'Referencia *',
+                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                                                ),
+                                              ),
+                                              // Ubicación en bodega
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildTextField(
+                                                  controller: _ubicacionBodegaController,
+                                                  label: 'Ubicación en Bodega *',
+                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                                                ),
+                                              ),
+                                              // Tipo de artículo
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildDropdown(
+                                                  value: _tipoArticulo,
+                                                  label: 'Tipo de Artículo *',
+                                                  items: _tiposArticulo,
+                                                  onChanged: (v) => setState(() => _tipoArticulo = v!),
+                                                ),
+                                              ),
+                                              // Bodega
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildDropdown(
+                                                  value: _tipoBodega,
+                                                  label: 'Bodega *',
+                                                  items: _bodegas.map((b) => {'value': b, 'label': b}).toList(),
+                                                  onChanged: (v) => setState(() => _tipoBodega = v!),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(height: 32),
+                                      
+                                      // Botones de acción
+                                      _buildActionButtons(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: widget.onCancelar ?? () {},
+          tooltip: 'Volver a la lista',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Crear Artículo',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: widget.onCancelar,
+            icon: const Icon(Icons.cancel_outlined),
+            label: const Text('Cancelar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white54),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _isLoading ? null : _crearArticulo,
+            icon: const Icon(Icons.add_circle_outline),
+            label: Text(
+              _isLoading ? 'Creando...' : 'Crear Artículo',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFf59e0b),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoriaSearch() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categoría *',
+          style: TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        Column(
+          children: [
+            TextFormField(
+              controller: _categoriaSearchController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Buscar categoría...',
+                hintStyle: const TextStyle(color: Color(0xFF6b7280)),
+                filled: true,
+                fillColor: const Color(0xFF2a2f40),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF474554)),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
+                ),
+                suffixIcon: _categoriaSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white70),
+                        onPressed: () {
+                          _categoriaSearchController.clear();
+                          setState(() {
+                            _categoriaId = null;
+                            _mostrarCrearCategoria = false;
+                            _mostrarListaCategorias = false;
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                _filtrarCategorias();
+              },
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Solo mostrar lista si hay búsqueda activa
+            if (_mostrarListaCategorias && (_categoriasFiltradas.isNotEmpty || _mostrarCrearCategoria))
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2a2f40),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF474554)),
+                ),
+                child: Column(
+                  children: [
+                    // Opción de crear nueva categoría
+                    if (_mostrarCrearCategoria)
+                      ListTile(
+                        leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
+                        title: Text(
+                          'Crear "${_categoriaSearchController.text}"',
+                          style: const TextStyle(color: Colors.green, fontSize: 14),
+                        ),
+                        onTap: _crearNuevaCategoria,
+                      ),
+                    
+                    // Lista de categorías filtradas
+                    ..._categoriasFiltradas.map((categoria) {
+                      return ListTile(
+                        title: Text(
+                          categoria['nombre'],
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _categoriaId = categoria['id'] as int;
+                            _categoriaSearchController.text = categoria['nombre'];
+                            _mostrarCrearCategoria = false;
+                            _mostrarListaCategorias = false;
+                          });
+                        },
+                      );
+                    }).toList(),
                   ],
                 ),
               ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMarcaSearch() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Marca *',
+          style: TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        Column(
+          children: [
+            TextFormField(
+              controller: _marcaSearchController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Buscar marca...',
+                hintStyle: const TextStyle(color: Color(0xFF6b7280)),
+                filled: true,
+                fillColor: const Color(0xFF2a2f40),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF474554)),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
+                ),
+                suffixIcon: _marcaSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white70),
+                        onPressed: () {
+                          _marcaSearchController.clear();
+                          setState(() {
+                            _marcaId = null;
+                            _mostrarCrearMarca = false;
+                            _mostrarListaMarcas = false;
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                _filtrarMarcas();
+              },
             ),
+            
+            const SizedBox(height: 8),
+            
+            // Solo mostrar lista si hay búsqueda activa
+            if (_mostrarListaMarcas && (_marcasFiltradas.isNotEmpty || _mostrarCrearMarca))
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2a2f40),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF474554)),
+                ),
+                child: Column(
+                  children: [
+                    // Opción de crear nueva marca
+                    if (_mostrarCrearMarca)
+                      ListTile(
+                        leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
+                        title: Text(
+                          'Crear "${_marcaSearchController.text}"',
+                          style: const TextStyle(color: Colors.green, fontSize: 14),
+                        ),
+                        onTap: _crearNuevaMarca,
+                      ),
+                    
+                    // Lista de marcas filtradas
+                    ..._marcasFiltradas.map((marca) {
+                      return ListTile(
+                        title: Text(
+                          marca['nombre'],
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _marcaId = marca['id'] as int;
+                            _marcaSearchController.text = marca['nombre'];
+                            _mostrarCrearMarca = false;
+                            _mostrarListaMarcas = false;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -272,30 +714,38 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      validator: validator,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
-        filled: true,
-        fillColor: const Color(0xFF474554).withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          validator: validator,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2a2f40),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF474554)),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0948d6), width: 2),
-        ),
-      ),
+      ],
     );
   }
 
@@ -305,41 +755,41 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     required String label,
     required Function(String?) onChanged,
   }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      dropdownColor: const Color(0xFF2d3748),
-      style: const TextStyle(color: Colors.white),
-      onChanged: onChanged,
-      items: items.map((item) {
-        return DropdownMenuItem<String>(
-          value: item['value'],
-          child: Text(item['label']!),
-        );
-      }).toList(),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
-        filled: true,
-        fillColor: const Color(0xFF474554).withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: value,
+          dropdownColor: const Color(0xFF2d3748),
+          style: const TextStyle(color: Colors.white),
+          onChanged: onChanged,
+          items: items.map((item) {
+            return DropdownMenuItem<String>(
+              value: item['value'],
+              child: Text(item['label']!),
+            );
+          }).toList(),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2a2f40),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF474554)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          validator: (value) => value == null ? 'Campo requerido' : null,
         ),
-      ),
+      ],
     );
-  }
-
-  @override
-  void dispose() {
-    _nombreController.dispose();
-    _marcaController.dispose();
-    _referenciaController.dispose();
-    _descripcionController.dispose();
-    _stockMinimoController.dispose();
-    super.dispose();
   }
 }

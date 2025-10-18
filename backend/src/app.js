@@ -4,10 +4,11 @@ const path = require("path");
 const fs = require("fs");
 const cors = require("./middleware/cors"); //
 const usuarios = require("./modulos/usuarios/rutas");
-const catalogo = require("./modulos/catalogo/rutas");
+const categorias = require("./modulos/categorias/rutas");
 const auth = require("./modulos/auth/rutas");
 const articulos = require("./modulos/articulos/rutas");
 const uploads = require("./modulos/uploads/rutas");
+const marcas = require('./modulos/marcas/rutas');
 const { app: _app } = require("./config");
 const error = require("./red/error");
 
@@ -23,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 📁 RUTA CORREGIDA - __dirname ya es "backend/src"
-app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 //app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Diagnóstico mejorado
@@ -86,11 +87,12 @@ app.get("/test-image", (req, res) => {
 app.set("port", _app.port);
 
 // rutas
-app.use("/api/catalogo/", catalogo);
+app.use("/api/categorias/", categorias);
 app.use("/api/usuarios/", usuarios);
 app.use("/api/auth/", auth);
 app.use("/api/articulos/", articulos);
-app.use("/api/uploads/", uploads);
+app.use("/uploads/", uploads);
+app.use('/api/marcas', marcas);
 
 // manejo de errores
 app.use(error);

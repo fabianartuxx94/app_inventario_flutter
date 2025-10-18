@@ -86,8 +86,7 @@ class ArticuloService {
         return {
           'success': true,
           'message': responseBody['message'] ?? 'Artículo creado correctamente',
-          'id_general': responseBody['id_general'],
-          'id_catalogo': responseBody['id_catalogo'],
+          'articulo_id': responseBody['articulo_id'],
         };
       } else {
         return {
@@ -106,73 +105,72 @@ class ArticuloService {
     }
   }
 
-  // ACTUALIZAR ARTÍCULO EXISTENTE - CORREGIDO (POST en lugar de PUT)
-static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String token) async {
-  try {
-    if (kDebugMode) {
-      print('✏️ Actualizando artículo ID: ${articulo.idCatalogo}');
-    }
-    
-    // ✅ VERIFICAR QUE imagen_path ESTÉ INCLUIDO
-    final datos = articulo.toJson();
-    if (kDebugMode) {
-      print('📦 DATOS COMPLETOS A ENVIAR:');
-    }
-    if (kDebugMode) {
-      print('   imagen_path: ${datos['imagen_path']}');
-    }
-    if (kDebugMode) {
-      print('   Todos los campos: $datos');
-    }
-    
-    final response = await http.post(
-      Uri.parse('$baseUrl/articulos/'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(datos),
-    );
-
-    final data = jsonDecode(response.body);
-    if (kDebugMode) {
-      print('📊 Respuesta actualización - Status: ${response.statusCode}');
-    }
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final responseBody = data['body'] ?? data;
-      return {
-        'success': true,
-        'message': responseBody['message'] ?? 'Artículo actualizado correctamente',
-        'id_general': responseBody['id_general'],
-        'id_catalogo': responseBody['id_catalogo'],
-      };
-    } else {
-      return {
-        'success': false,
-        'error': data['error'] ?? 'Error al actualizar artículo (${response.statusCode})',
-      };
-    }
-  } catch (e) {
-    if (kDebugMode) {
-      print('❌ Error actualizando artículo: $e');
-    }
-    return {
-      'success': false,
-      'error': 'Error de conexión: $e',
-    };
-  }
-}
-
-  // ELIMINAR ARTÍCULO
-  static Future<Map<String, dynamic>> eliminarArticulo(int idCatalogo, String token) async {
+  // ACTUALIZAR ARTÍCULO EXISTENTE
+  static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String token) async {
     try {
       if (kDebugMode) {
-        print('🗑️ Eliminando artículo ID: $idCatalogo');
+        print('✏️ Actualizando artículo ID: ${articulo.articuloId}');
+      }
+      
+      // ✅ VERIFICAR QUE imagen_path ESTÉ INCLUIDO
+      final datos = articulo.toJson();
+      if (kDebugMode) {
+        print('📦 DATOS COMPLETOS A ENVIAR:');
+      }
+      if (kDebugMode) {
+        print('   imagen_path: ${datos['imagen_path']}');
+      }
+      if (kDebugMode) {
+        print('   Todos los campos: $datos');
+      }
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/articulos/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(datos),
+      );
+
+      final data = jsonDecode(response.body);
+      if (kDebugMode) {
+        print('📊 Respuesta actualización - Status: ${response.statusCode}');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseBody = data['body'] ?? data;
+        return {
+          'success': true,
+          'message': responseBody['message'] ?? 'Artículo actualizado correctamente',
+          'articulo_id': responseBody['articulo_id'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['error'] ?? 'Error al actualizar artículo (${response.statusCode})',
+        };
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error actualizando artículo: $e');
+      }
+      return {
+        'success': false,
+        'error': 'Error de conexión: $e',
+      };
+    }
+  }
+
+  // ELIMINAR ARTÍCULO
+  static Future<Map<String, dynamic>> eliminarArticulo(int articuloId, String token) async {
+    try {
+      if (kDebugMode) {
+        print('🗑️ Eliminando artículo ID: $articuloId');
       }
       
       final response = await http.delete(
-        Uri.parse('$baseUrl/articulos/$idCatalogo'),
+        Uri.parse('$baseUrl/articulos/$articuloId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -208,14 +206,14 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
   }
 
   // OBTENER ARTÍCULO POR ID
-  static Future<Articulo?> obtenerArticuloPorId(int idCatalogo, String token) async {
+  static Future<Articulo?> obtenerArticuloPorId(int articuloId, String token) async {
     try {
       if (kDebugMode) {
-        print('🔍 Obteniendo artículo por ID: $idCatalogo');
+        print('🔍 Obteniendo artículo por ID: $articuloId');
       }
       
       final response = await http.get(
-        Uri.parse('$baseUrl/articulos/$idCatalogo'),
+        Uri.parse('$baseUrl/articulos/$articuloId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -248,6 +246,72 @@ static Future<Map<String, dynamic>> actualizarArticulo(Articulo articulo, String
         print('❌ Error obteniendo artículo por ID: $e');
       }
       return null;
+    }
+  }
+
+  // OBTENER CATEGORÍAS
+  static Future<List<dynamic>> obtenerCategorias(String token) async {
+    try {
+      if (kDebugMode) {
+        print('🗂️ Solicitando categorías desde: $baseUrl/categorias/');
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/categorias/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final categoriasList = data['body'] as List;
+        if (kDebugMode) {
+          print('✅ Se obtuvieron ${categoriasList.length} categorías');
+        }
+        return categoriasList;
+      } else {
+        throw Exception('Error al obtener categorías: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error obteniendo categorías: $e');
+      }
+      throw Exception('Error de conexión: $e');
+    }
+  }
+
+  // OBTENER MARCAS
+  static Future<List<dynamic>> obtenerMarcas(String token) async {
+    try {
+      if (kDebugMode) {
+        print('🏷️ Solicitando marcas desde: $baseUrl/marcas/');
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/marcas/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final marcasList = data['body'] as List;
+        if (kDebugMode) {
+          print('✅ Se obtuvieron ${marcasList.length} marcas');
+        }
+        return marcasList;
+      } else {
+        throw Exception('Error al obtener marcas: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error obteniendo marcas: $e');
+      }
+      throw Exception('Error de conexión: $e');
     }
   }
 }

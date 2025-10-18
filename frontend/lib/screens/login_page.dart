@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:google_fonts/google_fonts.dart';
@@ -47,7 +48,9 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (mounted) {
-        print('Error cargando credenciales: $e');
+        if (kDebugMode) {
+          print('Error cargando credenciales: $e');
+        }
       }
     }
   }
@@ -79,7 +82,9 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.remove('password');
       await prefs.remove('rememberMe');
     } catch (e) {
-      print('Error limpiando credenciales: $e');
+      if (kDebugMode) {
+        print('Error limpiando credenciales: $e');
+      }
     }
   }
 
@@ -100,8 +105,10 @@ class _LoginPageState extends State<LoginPage> {
         // Guardar credenciales si "Recordarme" está activado
         await _saveCredentials();
         
+        // ignore: use_build_context_synchronously
         Provider.of<AuthProvider>(context, listen: false).login(token);
         Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(builder: (_) => const DashboardPage()),
         );
@@ -130,6 +137,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // Manejar la tecla Enter - MÉTODO CORREGIDO
+  // ignore: deprecated_member_use
   void _handleKeyPress(RawKeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.enter) {
       _login();
@@ -139,6 +147,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ignore: deprecated_member_use
       body: RawKeyboardListener(
         focusNode: FocusNode(),
         onKey: _handleKeyPress,
@@ -214,6 +223,7 @@ class _LoginPageState extends State<LoginPage> {
       width: formWidth,
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
+        // ignore: deprecated_member_use
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white70),
@@ -287,9 +297,9 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       side: const BorderSide(color: Colors.white70),
                       checkColor: Colors.white,
-                      fillColor: MaterialStateProperty.resolveWith<Color>(
-                        (Set<MaterialState> states) {
-                          if (states.contains(MaterialState.selected)) {
+                      fillColor: WidgetStateProperty.resolveWith<Color>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
                             return Colors.blue;
                           }
                           return Colors.transparent;
@@ -314,25 +324,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    // TODO: Implementar funcionalidad de "¿Olvidó su contraseña?"
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad en desarrollo'),
-                        backgroundColor: Colors.blue,
-                      ),
-                    );
-                  },
-                  child: Text(
-                    "¿Olvidó su contraseña?",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
+                
               ],
             ),
             const SizedBox(height: 20),

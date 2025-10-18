@@ -1,20 +1,24 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import '../../models/articulo_model.dart';
-import '../../services/articulo_service.dart';
+import '../../services/articulos_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
-import '../../providers/auth_provider.dart'; // 👈 Añade esta importación
+import '../../widgets/custom_background.dart';
+import '../../providers/auth_provider.dart';
 
 class EditarArticuloScreen extends StatefulWidget {
   final Articulo articulo;
+  final VoidCallback? onArticuloActualizado;
+  final VoidCallback? onCancelar;
 
   const EditarArticuloScreen({
     super.key,
     required this.articulo,
-  }); // 👈 Quita el parámetro token
+    this.onArticuloActualizado,
+    this.onCancelar,
+  });
 
   @override
   State<EditarArticuloScreen> createState() => _EditarArticuloScreenState();
@@ -22,424 +26,314 @@ class EditarArticuloScreen extends StatefulWidget {
 
 class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nombreController;
-  late TextEditingController _marcaController;
-  late TextEditingController _referenciaController;
-  late TextEditingController _descripcionController;
-  late TextEditingController _stockMinimoController;
+  final _referenciaController = TextEditingController();
+  final _ubicacionBodegaController = TextEditingController();
 
-  late String _tipoBodega;
-  late String _tipo;
-  late String _imagenUrl;
-  bool _isLoading = false;
+  String _tipoBodega = 'Sistemas';
+  String _tipoArticulo = 'Activo Fijo';
   File? _nuevaImagenSeleccionada;
-
-  final List<Map<String, String>> _tiposArticulo = [
-    {'value': 'activo_fijo', 'label': 'Activo Fijo'},
-    {'value': 'activo_control', 'label': 'Activo Control'},
-    {'value': 'consumible', 'label': 'Consumible'},
-  ];
-
-  final List<String> _bodegas = ['Sistemas', 'Bmd'];
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _nombreController = TextEditingController(text: widget.articulo.nombreArticulo);
-    _marcaController = TextEditingController(text: widget.articulo.marca);
-    _referenciaController = TextEditingController(text: widget.articulo.referencia);
-    _descripcionController = TextEditingController(text: widget.articulo.descripcionCatalogo);
-    _stockMinimoController = TextEditingController(text: widget.articulo.stockMinimo.toString());
+    _cargarDatosArticulo();
+  }
+
+  void _cargarDatosArticulo() {
+    _referenciaController.text = widget.articulo.referencia;
+    _ubicacionBodegaController.text = widget.articulo.ubicacionBodega;
     _tipoBodega = widget.articulo.tipoBodega;
-    _tipo = widget.articulo.tipo;
-    _imagenUrl = widget.articulo.imagenPath;
+    _tipoArticulo = widget.articulo.tipoArticulo;
   }
 
   Future<void> _actualizarArticulo() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
-      // 👇 Obtén el token del Provider
       final token = Provider.of<AuthProvider>(context, listen: false).token!;
-      
-      if (kDebugMode) {
-        print('🔄 INICIANDO ACTUALIZACIÓN DE ARTÍCULO');
-      }
-
       String? nuevaImagenUrl;
 
-      // Subir nueva imagen si existe
       if (_nuevaImagenSeleccionada != null) {
-        if (kDebugMode) {
-          print('🖼️ Subiendo NUEVA imagen con datos reales...');
-        }
-        
         final uploadResult = await UploadService.uploadImage(
           _nuevaImagenSeleccionada!,
-          token, // 👈 Usa el token del Provider
-          nombreArticulo: _nombreController.text.trim(),
-          marca: _marcaController.text.trim(),
+          token,
+          nombreArticulo: widget.articulo.categoriaNombre,
+          marca: widget.articulo.marcaNombre,
           referencia: _referenciaController.text.trim(),
         );
-
         if (uploadResult['success']) {
           nuevaImagenUrl = uploadResult['imageUrl'];
-          if (kDebugMode) {
-            print('✅ Imagen subida exitosamente: $nuevaImagenUrl');
-          }
-        } else {
-          if (kDebugMode) {
-            print('❌ Error subiendo imagen: ${uploadResult['error']}');
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error subiendo imagen: ${uploadResult['error']}'),
-              backgroundColor: Colors.orange,
-            ),
-          );
         }
       }
 
-      // Preparar el artículo para actualizar
       final articuloActualizado = Articulo(
-        idGeneral: widget.articulo.idGeneral,
-        nombreArticulo: _nombreController.text.trim(),
-        stockMinimo: int.tryParse(_stockMinimoController.text) ?? widget.articulo.stockMinimo,
-        descripcionGeneral: _descripcionController.text.trim(),
-        idCatalogo: widget.articulo.idCatalogo,
-        marca: _marcaController.text.trim(),
+        articuloId: widget.articulo.articuloId,
+        categoriaId: widget.articulo.categoriaId,
+        categoriaNombre: widget.articulo.categoriaNombre,
+        marcaId: widget.articulo.marcaId,
+        marcaNombre: widget.articulo.marcaNombre,
         referencia: _referenciaController.text.trim(),
         tipoBodega: _tipoBodega,
-        tipo: _tipo,
-        descripcionCatalogo: _descripcionController.text.trim(),
-        imagenPath: nuevaImagenUrl ?? _imagenUrl,
+        tipoArticulo: _tipoArticulo,
+        ubicacionBodega: _ubicacionBodegaController.text.trim(),
+        imagenPath: nuevaImagenUrl ?? widget.articulo.imagenPath,
+        stockMinimo: widget.articulo.stockMinimo,
+        etiquetas: widget.articulo.etiquetas,
       );
 
-      if (kDebugMode) {
-        print('💾 Guardando artículo en BD...');
-      }
-      final resultado = await ArticuloService.actualizarArticulo(
-        articuloActualizado, 
-        token // 👈 Usa el token del Provider
-      );
-
+      final resultado = await ArticuloService.actualizarArticulo(articuloActualizado, token);
+      
       if (resultado['success'] == true) {
-        if (kDebugMode) {
-          print('✅ Artículo actualizado exitosamente en BD');
-        }
-        
-        if (nuevaImagenUrl != null) {
-          setState(() {
-            _imagenUrl = nuevaImagenUrl!;
-          });
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${resultado['message']}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            content: Text('✅ ${resultado['message']}'), 
+            backgroundColor: Colors.green
           ),
         );
         
-        await Future.delayed(const Duration(milliseconds: 1500));
-        Navigator.of(context).pop(true);
+        if (widget.onArticuloActualizado != null) {
+          widget.onArticuloActualizado!();
+        }
       } else {
-        if (kDebugMode) {
-          print('❌ Error guardando artículo: ${resultado['error']}');
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: ${resultado['error']}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        _mostrarError(resultado['error'] ?? 'Error al actualizar artículo');
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('💥 ERROR CRÍTICO: $e');
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error al actualizar: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      _mostrarError('Error al actualizar artículo: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  void _probarDiagnostico() async {
-    if (kDebugMode) {
-      print('🔍 Ejecutando diagnóstico...');
-    }
-    final token = Provider.of<AuthProvider>(context, listen: false).token!;
-    final resultado = await UploadService.diagnostic(token);
-    if (kDebugMode) {
-      print('📊 Resultado diagnóstico: $resultado');
-    }
-    
+  void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Diagnóstico: ${resultado['success'] ? 'Éxito' : 'Error'}'),
-        backgroundColor: resultado['success'] ? Colors.green : Colors.red,
-      ),
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0f1422),
-      appBar: AppBar(
-        title: const Text('Editar Artículo'),
-        backgroundColor: const Color(0xFF0948d6),
-        actions: [
-          if (!_isLoading) IconButton(
-            icon: const Icon(Icons.bug_report, size: 20),
-            onPressed: _probarDiagnostico,
-            tooltip: 'Diagnóstico',
+    final isWide = MediaQuery.of(context).size.width > 800;
+
+    return Stack(
+      children: [
+        const CustomBackground(),
+        
+        Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header con botón de volver
+              _buildHeader(),
+              const SizedBox(height: 20),
+              
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
+                      )
+                    : SingleChildScrollView(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            child: Card(
+                              color: const Color(0xFF1a1f2e).withOpacity(0.9),
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    children: [
+                                      // Información del artículo
+                                      _buildInfoArticulo(),
+                                      const SizedBox(height: 20),
+                                      
+                                      ImageUploader(
+                                        onImageSelected: (imageFile) {
+                                          setState(() {
+                                            _nuevaImagenSeleccionada = imageFile;
+                                          });
+                                        },
+                                        currentImageUrl: widget.articulo.imagenCompletaUrl,
+                                        nombreArticulo: widget.articulo.categoriaNombre,
+                                        marca: widget.articulo.marcaNombre,
+                                        referencia: _referenciaController.text,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return Wrap(
+                                            spacing: 16,
+                                            runSpacing: 16,
+                                            children: [
+                                              // Referencia
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildTextField(
+                                                  controller: _referenciaController,
+                                                  label: 'Referencia *',
+                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                                                ),
+                                              ),
+                                              // Ubicación en bodega
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildTextField(
+                                                  controller: _ubicacionBodegaController,
+                                                  label: 'Ubicación en Bodega *',
+                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                                                ),
+                                              ),
+                                              // Tipo de artículo
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildDropdown(
+                                                  value: _tipoArticulo,
+                                                  label: 'Tipo de Artículo *',
+                                                  items: [
+                                                    {'value': 'Activo Fijo', 'label': 'Activo Fijo'},
+                                                    {'value': 'Activo de Control', 'label': 'Activo de Control'},
+                                                    {'value': 'Consumible', 'label': 'Consumible'},
+                                                  ],
+                                                  onChanged: (v) => setState(() => _tipoArticulo = v!),
+                                                ),
+                                              ),
+                                              // Bodega
+                                              SizedBox(
+                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                child: _buildDropdown(
+                                                  value: _tipoBodega,
+                                                  label: 'Bodega *',
+                                                  items: ['Sistemas', 'Bmd'].map((b) => {'value': b, 'label': b}).toList(),
+                                                  onChanged: (v) => setState(() => _tipoBodega = v!),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(height: 32),
+                                      
+                                      // Botones de acción
+                                      _buildActionButtons(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
           ),
-          IconButton(
-            icon: _isLoading 
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.save),
-            onPressed: _isLoading ? null : _actualizarArticulo,
-            tooltip: 'Guardar cambios',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: widget.onCancelar ?? () {},
+          tooltip: 'Volver a la lista',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Editar Artículo',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoArticulo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2a2f40),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF0948d6)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFf59e0b), size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Editando: ${widget.articulo.marcaNombre} ${widget.articulo.referencia}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Categoría: ${widget.articulo.categoriaNombre}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Actualizando artículo...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    // ... (el resto del código permanece igual, pero actualiza ImageUploader)
-                    ImageUploader(
-                      onImageSelected: (imageFile) {
-                        setState(() {
-                          _nuevaImagenSeleccionada = imageFile;
-                        });
-                        if (kDebugMode) {
-                          print('📸 Nueva imagen seleccionada para subir al guardar: ${imageFile.path}');
-                        }
-                      },
-                      currentImageUrl: _imagenUrl,
-                      nombreArticulo: _nombreController.text,
-                      marca: _marcaController.text,
-                      referencia: _referenciaController.text,
-                    ),
-                    // ... (el resto del código permanece igual)
+    );
+  }
 
-                       const SizedBox(height: 24),
-
-                    _buildTextField(
-                      controller: _nombreController,
-                      label: 'Nombre del Artículo *',
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'El nombre es requerido';
-                        }
-                        if (value.length < 2) {
-                          return 'El nombre debe tener al menos 2 caracteres';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _marcaController,
-                            label: 'Marca *',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'La marca es requerida';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _referenciaController,
-                            label: 'Referencia/Modelo *',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'La referencia es requerida';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdown(
-                            value: _tipo,
-                            items: _tiposArticulo,
-                            label: 'Tipo de Artículo *',
-                            onChanged: (value) => setState(() => _tipo = value!),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDropdown(
-                            value: _tipoBodega,
-                            items: _bodegas.map((bodega) => {
-                              'value': bodega,
-                              'label': bodega
-                            }).toList(),
-                            label: 'Bodega *',
-                            onChanged: (value) => setState(() => _tipoBodega = value!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _stockMinimoController,
-                      label: 'Stock Mínimo *',
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'El stock mínimo es requerido';
-                        }
-                        final stock = int.tryParse(value);
-                        if (stock == null || stock < 0) {
-                          return 'Ingrese un número válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _descripcionController,
-                      label: 'Descripción *',
-                      maxLines: 4,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'La descripción es requerida';
-                        }
-                        if (value.length < 10) {
-                          return 'La descripción debe tener al menos 10 caracteres';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 32),
-
-                    if (_nuevaImagenSeleccionada != null)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1a202c),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFf59e0b)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.lightbulb, color: Color(0xFFf59e0b), size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'La imagen se guardará con:',
-                                  style: TextStyle(
-                                    color: Color(0xFFf59e0b),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_nombreController.text.isNotEmpty ? _nombreController.text : "articulo"}_'
-                              // ignore: duplicate_ignore
-                              // ignore: prefer_interpolation_to_compose_strings
-                              '${_marcaController.text.isNotEmpty ? _marcaController.text + "_" : ""}'
-                              '${_referenciaController.text.isNotEmpty ? _referenciaController.text + "_" : ""}'
-                              'timestamp.jpg',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _actualizarArticulo,
-                        icon: _isLoading 
-                            ? SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Icon(Icons.save, size: 20),
-                        label: Text(
-                          _isLoading ? 'Actualizando...' : 'Actualizar Artículo',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFf59e0b),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: widget.onCancelar,
+            icon: const Icon(Icons.cancel_outlined),
+            label: const Text('Cancelar'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white54),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _isLoading ? null : _actualizarArticulo,
+            icon: const Icon(Icons.save),
+            label: Text(
+              _isLoading ? 'Actualizando...' : 'Actualizar Artículo',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFf59e0b),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -450,39 +344,38 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      validator: validator,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
-        filled: true,
-        // ignore: deprecated_member_use
-        fillColor: const Color(0xFF474554).withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          validator: validator,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2a2f40),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF474554)),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0948d6), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 2),
-        ),
-      ),
+      ],
     );
   }
 
@@ -492,49 +385,40 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     required String label,
     required Function(String?) onChanged,
   }) {
-    return DropdownButtonFormField<String>(
-      initialValue: value.isNotEmpty ? value : null,
-      dropdownColor: const Color(0xFF2d3748),
-      style: const TextStyle(color: Colors.white),
-      onChanged: onChanged,
-      items: items.map((item) {
-        return DropdownMenuItem<String>(
-          value: item['value'],
-          child: Text(item['label']!),
-        );
-      }).toList(),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFFaca9bb)),
-        filled: true,
-        // ignore: deprecated_member_use
-        fillColor: const Color(0xFF474554).withOpacity(0.5),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF474554)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: value,
+          dropdownColor: const Color(0xFF2d3748),
+          style: const TextStyle(color: Colors.white),
+          onChanged: onChanged,
+          items: items.map((item) {
+            return DropdownMenuItem<String>(
+              value: item['value'],
+              child: Text(item['label']!),
+            );
+          }).toList(),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2a2f40),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF474554)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
         ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Este campo es requerido';
-        }
-        return null;
-      },
+      ],
     );
   }
-
-  @override
-  void dispose() {
-    _nombreController.dispose();
-    _marcaController.dispose();
-    _referenciaController.dispose();
-    _descripcionController.dispose();
-    _stockMinimoController.dispose();
-    super.dispose();
-  }
 }
-                  

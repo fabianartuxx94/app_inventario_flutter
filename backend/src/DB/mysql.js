@@ -102,14 +102,30 @@ function buscar(tabla, campo, valor) {
 }
 
 function getConnection() {
-  return new Promise((resolve, reject) => {
-    const connection = mysql.createConnection(dbconfig);
-    connection.connect((err) => {
-      if (err) return reject(err);
-      resolve(connection);
-    });
+  const conn = mysql.createConnection({
+    host: config.mysql.host,
+    user: config.mysql.user,
+    password: config.mysql.password,
+    database: config.mysql.database,
+    multipleStatements: false,
   });
+
+  // envolver en Promise para conexión asincrónica si lo prefieres
+  return {
+    conn,
+    beginTransaction: () =>
+      new Promise((resolve, reject) => conn.beginTransaction((err) => (err ? reject(err) : resolve()))),
+    commit: () =>
+      new Promise((resolve, reject) => conn.commit((err) => (err ? reject(err) : resolve()))),
+    rollback: () =>
+      new Promise((resolve) => conn.rollback(() => resolve())),
+    query: (sql, params) =>
+      new Promise((resolve, reject) => conn.query(sql, params, (err, results) => (err ? reject(err) : resolve(results)))),
+    release: () => conn.end(),
+  };
 }
+
+module.exports.getConnection = getConnection;
 
 // Para consultas personalizadas (como joins)
 function consultaDirecta(sql, params = []) {
@@ -128,5 +144,5 @@ module.exports = {
   query,
   buscar,
   getConnection,
-  consultaDirecta,
-};
+  consultaDirecta,};
+

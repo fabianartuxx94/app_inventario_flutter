@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../categorias/categorias_page.dart';
 import '../articulos/articulos_screen.dart';
+import '../articulos/crear_articulo_screen.dart';
+import '../articulos/editar_articulo_screen.dart';
 import '../login_page.dart';
 import '../../widgets/custom_background.dart';
 
@@ -15,11 +17,12 @@ class DashboardScaffold extends StatefulWidget {
 
 class _DashboardScaffoldState extends State<DashboardScaffold> {
   int _selectedIndex = 0;
+  Widget _currentPage = const DashboardHome();
 
-  final List<Widget> _pages = const [
+  final List<Widget> _mainPages = const [
     DashboardHome(),
-    CatalogoPage(),
-    CatalogoScreen(),
+    CategoriasPage(),
+    ArticulosScreen(),
     Placeholder(), // Reportes
     Placeholder(), // Configuración
   ];
@@ -33,7 +36,41 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
   ];
 
   void _onItemSelected(int index) {
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      _currentPage = _mainPages[index];
+    });
+  }
+
+  // Navegar a crear artículo (dentro del espacio de artículos)
+  void _navigateToCrearArticulo() {
+    setState(() {
+      _currentPage = CrearArticuloScreen(
+        onArticuloCreado: _volverAListaArticulos,
+        onCancelar: _volverAListaArticulos,
+      );
+      _selectedIndex = 2; // Mantener Artículos seleccionado en sidebar
+    });
+  }
+
+  // Navegar a editar artículo (dentro del espacio de artículos)
+  void _navigateToEditarArticulo(dynamic articulo) {
+    setState(() {
+      _currentPage = EditarArticuloScreen(
+        articulo: articulo,
+        onArticuloActualizado: _volverAListaArticulos,
+        onCancelar: _volverAListaArticulos,
+      );
+      _selectedIndex = 2; // Mantener Artículos seleccionado en sidebar
+    });
+  }
+
+  // Volver a la lista de artículos
+  void _volverAListaArticulos() {
+    setState(() {
+      _currentPage = const ArticulosScreen();
+      _selectedIndex = 2;
+    });
   }
 
   void _logout() {
@@ -58,7 +95,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
                 ? Row(
                     children: [
                       _buildSidebar(),
-                      Expanded(child: _pages[_selectedIndex]),
+                      Expanded(child: _currentPage),
                     ],
                   )
                 : _buildMobileView(context),
@@ -125,75 +162,89 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.white, // color del ícono del menú
-        ),
-        title: Text(
-          _titles[_selectedIndex],
-          style: const TextStyle(
-            color: Colors.white, // color del texto del título
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: _buildAppBarTitle(),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            color: Colors.white, // color del ícono de logout
+            color: Colors.white,
             onPressed: _logout,
           ),
         ],
       ),
-      drawer: Drawer(
-        backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
-        child: Column(
-          children: [
-            const SizedBox(height: 60),
-            const Icon(Icons.inventory, color: Colors.white, size: 40),
-            const SizedBox(height: 10),
-            const Text(
-              "InventarioApp",
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 20),
-            for (int i = 0; i < _titles.length; i++)
-              ListTile(
-                leading: Icon(
-                  [
-                    Icons.dashboard,
-                    Icons.category,
-                    Icons.inventory,
-                    Icons.analytics,
-                    Icons.settings
-                  ][i],
-                  color: Colors.white,
-                ),
-                title: Text(
-                  _titles[i],
-                  style: const TextStyle(color: Colors.white),
-                ),
-                selected: _selectedIndex == i,
-                selectedTileColor: Colors.white12,
-                onTap: () {
-                  Navigator.pop(context);
-                  _onItemSelected(i);
-                },
-              ),
-            const Spacer(),
-            const Divider(color: Colors.white54),
+      drawer: _buildDrawer(context),
+      body: _currentPage,
+    );
+  }
+
+  Widget _buildAppBarTitle() {
+    if (_currentPage is CrearArticuloScreen) {
+      return const Text(
+        'Crear Artículo',
+        style: TextStyle(color: Colors.white),
+      );
+    } else if (_currentPage is EditarArticuloScreen) {
+      return const Text(
+        'Editar Artículo',
+        style: TextStyle(color: Colors.white),
+      );
+    } else {
+      return Text(
+        _titles[_selectedIndex],
+        style: const TextStyle(color: Colors.white),
+      );
+    }
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
+      child: Column(
+        children: [
+          const SizedBox(height: 60),
+          const Icon(Icons.inventory, color: Colors.white, size: 40),
+          const SizedBox(height: 10),
+          const Text(
+            "InventarioApp",
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+          const SizedBox(height: 20),
+          for (int i = 0; i < _titles.length; i++)
             ListTile(
-              leading: const Icon(Icons.person, color: Colors.white),
-              title: const Text(
-                "Cerrar sesión",
-                style: TextStyle(color: Colors.white),
+              leading: Icon(
+                [
+                  Icons.dashboard,
+                  Icons.category,
+                  Icons.inventory,
+                  Icons.analytics,
+                  Icons.settings
+                ][i],
+                color: Colors.white,
               ),
-              onTap: _logout,
+              title: Text(
+                _titles[i],
+                style: const TextStyle(color: Colors.white),
+              ),
+              selected: _selectedIndex == i,
+              selectedTileColor: Colors.white12,
+              onTap: () {
+                Navigator.pop(context);
+                _onItemSelected(i);
+              },
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          const Spacer(),
+          const Divider(color: Colors.white54),
+          ListTile(
+            leading: const Icon(Icons.person, color: Colors.white),
+            title: const Text(
+              "Cerrar sesión",
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: _logout,
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
-      body: _pages[_selectedIndex],
     );
   }
 }
