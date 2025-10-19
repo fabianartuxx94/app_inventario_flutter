@@ -3,14 +3,18 @@ import 'package:provider/provider.dart';
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
 import '../../widgets/articulo_card.dart';
-import 'crear_articulo_screen.dart';
-import 'editar_articulo_screen.dart';
 import '../../widgets/custom_background.dart';
 import '../../providers/auth_provider.dart';
 
 class ArticulosScreen extends StatefulWidget {
-  const ArticulosScreen({super.key});
-  
+  final VoidCallback? onCrearArticulo;
+  final Function(dynamic)? onEditarArticulo;
+
+  const ArticulosScreen({
+    super.key,
+    this.onCrearArticulo,
+    this.onEditarArticulo,
+  });
 
   @override
   State<ArticulosScreen> createState() => _ArticulosScreenState();
@@ -112,19 +116,13 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CrearArticuloScreen(),
-            ),
-          );
-          _cargarArticulos();
-        },
-        backgroundColor: const Color(0xFF0948d6),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: widget.onCrearArticulo != null 
+          ? FloatingActionButton(
+              onPressed: widget.onCrearArticulo,
+              backgroundColor: const Color(0xFF0948d6),
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: Stack(
         children: [
           const CustomBackground(),
@@ -160,17 +158,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
                                 final articulo = _articulos[index];
                                 return ArticuloCard(
                                   articulo: articulo,
-                                  onEdit: () async {
-                                    await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            EditarArticuloScreen(
-                                                articulo: articulo),
-                                      ),
-                                    );
-                                    _cargarArticulos();
-                                  },
+                                  onEdit: () => widget.onEditarArticulo?.call(articulo),
                                   onDelete: () => _eliminarArticulo(articulo),
                                 );
                               },

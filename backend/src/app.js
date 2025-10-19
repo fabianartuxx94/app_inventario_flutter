@@ -1,100 +1,111 @@
+// 📁 app.js
+
 const express = require("express");
 const morgan = require("morgan");
 const path = require("path");
 const fs = require("fs");
-const cors = require("./middleware/cors"); //
+
+// 🔐 Middleware personalizado de CORS
+const cors = require("./middleware/cors");
+
+// 📦 Rutas del sistema
 const usuarios = require("./modulos/usuarios/rutas");
 const categorias = require("./modulos/categorias/rutas");
 const auth = require("./modulos/auth/rutas");
 const articulos = require("./modulos/articulos/rutas");
 const uploads = require("./modulos/uploads/rutas");
-const marcas = require('./modulos/marcas/rutas');
+const marcas = require("./modulos/marcas/rutas");
+
+// 🔧 Configuración
 const { app: _app } = require("./config");
+
+// ❌ Manejo de errores
 const error = require("./red/error");
 
 const app = express();
 
-// ✅ Aplica CORS personalizado (antes de cualquier ruta)
-app.use(cors);
-
-// middlewares
-
+// ------------------------------
+// 🔧 Middleware global
+// ------------------------------
+app.use(cors); // CORS personalizado
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 📁 RUTA CORREGIDA - __dirname ya es "backend/src"
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-//app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// ------------------------------
+// 📁 Servir archivos estáticos
+// ------------------------------
 
-// Diagnóstico mejorado
+// Sirve imágenes desde: /uploads/images/articulos/*
+const rutaUploads = path.join(__dirname, "uploads"); // backend/uploads
+const rutaImagenesArticulos = path.join(rutaUploads, "images", "articulos");
+
+app.use("/uploads/images/articulos", express.static(rutaImagenesArticulos));
+
+// Diagnóstico para verificar archivos estáticos
 app.get("/diagnostic/static-files", (req, res) => {
-  const uploadsPath = path.join(__dirname, "uploads");
-  const imagesPath = path.join(uploadsPath, "images", "articulos");
-  
   const diagnostico = {
-    ruta_uploads: uploadsPath,
-    existe_uploads: fs.existsSync(uploadsPath),
-    ruta_imagenes: imagesPath,
-    existe_imagenes: fs.existsSync(imagesPath),
+    ruta_uploads: rutaUploads,
+    existe_uploads: fs.existsSync(rutaUploads),
+    ruta_imagenes: rutaImagenesArticulos,
+    existe_imagenes: fs.existsSync(rutaImagenesArticulos),
     archivos: []
   };
 
-  console.log("🔍 DIAGNÓSTICO CON ESTRUCTURA REAL:");
-  console.log("   __dirname:", __dirname);
+  console.log("🔍 DIAGNÓSTICO RUTA DE ARCHIVOS:");
   console.log("   Ruta uploads:", diagnostico.ruta_uploads);
   console.log("   Existe uploads:", diagnostico.existe_uploads);
   console.log("   Ruta imágenes:", diagnostico.ruta_imagenes);
   console.log("   Existe imágenes:", diagnostico.existe_imagenes);
 
   if (diagnostico.existe_imagenes) {
-    diagnostico.archivos = fs.readdirSync(imagesPath);
-    console.log("   Archivos en articulos/:", diagnostico.archivos);
-    
-    // Verificar el archivo específico
-    const archivoTarget = "mouse_logitech_m185.jpg";
-    const archivoPath = path.join(imagesPath, archivoTarget);
+    diagnostico.archivos = fs.readdirSync(rutaImagenesArticulos);
+    const archivo = "mouse_logitech_m185.jpg";
+    const archivoPath = path.join(rutaImagenesArticulos, archivo);
     diagnostico.archivo_target = {
-      nombre: archivoTarget,
+      nombre: archivo,
       existe: fs.existsSync(archivoPath),
       ruta_completa: archivoPath
     };
-    console.log("   Archivo específico:", diagnostico.archivo_target);
   }
 
   res.json(diagnostico);
 });
 
-// Ruta de prueba directa para la imagen
+// Ruta directa para test de imagen
 app.get("/test-image", (req, res) => {
-  const imagePath = path.join(__dirname, "uploads", "images", "articulos", "mouse_logitech_m185.jpg");
-  
-  console.log("🖼️  INTENTANDO SERVIR IMAGEN:");
-  console.log("   Ruta:", imagePath);
-  console.log("   Existe:", fs.existsSync(imagePath));
-  
-  if (fs.existsSync(imagePath)) {
-    res.sendFile(imagePath);
+  const filePath = path.join(rutaImagenesArticulos, "mouse_logitech_m185.jpg");
+
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
   } else {
     res.status(404).json({
       error: "Imagen no encontrada",
-      ruta_buscada: imagePath
+      ruta_buscada: filePath
     });
   }
 });
 
-// configuracion
-app.set("port", _app.port);
+// ------------------------------
+// 🧩 API REST - Módulos del sistema
+// ------------------------------
+app.use("/api/categorias", categorias);
+app.use("/api/usuarios", usuarios);
+app.use("/api/auth", auth);
+app.use("/api/articulos", articulos);
+app.use("/api/marcas", marcas);
 
-// rutas
-app.use("/api/categorias/", categorias);
-app.use("/api/usuarios/", usuarios);
-app.use("/api/auth/", auth);
-app.use("/api/articulos/", articulos);
-app.use("/uploads/", uploads);
-app.use('/api/marcas', marcas);
+// 📦 Subida de archivos
+app.use("/api/uploads", uploads); // ¡Cuidado de no duplicar con `/uploads`!
 
-// manejo de errores
+// ------------------------------
+// ❌ Manejo de errores centralizado
+// ------------------------------
 app.use(error);
+
+// ------------------------------
+// 🚀 Configuración del puerto
+// ------------------------------
+app.set("port", _app.port || 5000);
 
 module.exports = app;

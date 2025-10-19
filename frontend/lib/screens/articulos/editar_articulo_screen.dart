@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
 import '../../widgets/custom_background.dart';
 import '../../providers/auth_provider.dart';
+import '../../config/config.dart'; // ✅ Importa la configuración con la IP real
 
 class EditarArticuloScreen extends StatefulWidget {
   final Articulo articulo;
@@ -84,15 +86,17 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       );
 
       final resultado = await ArticuloService.actualizarArticulo(articuloActualizado, token);
-      
+
       if (resultado['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${resultado['message']}'), 
-            backgroundColor: Colors.green
+            content: Text('✅ ${resultado['message']}'),
+            backgroundColor: Colors.green,
           ),
         );
-        
+
+        await Future.delayed(const Duration(milliseconds: 800));
+
         if (widget.onArticuloActualizado != null) {
           widget.onArticuloActualizado!();
         }
@@ -112,9 +116,26 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     );
   }
 
+  /// ✅ Esta función ahora construye bien la URL de imagen usando AppConfig
+  String _buildImageUrl(String imagenPath) {
+    if (imagenPath.isEmpty) {
+      return '';
+    }
+
+    if (imagenPath.startsWith('http')) {
+      return imagenPath;
+    }
+
+    if (imagenPath.startsWith('/uploads')) {
+      return '${AppConfig.baseUrl}$imagenPath';
+    }
+
+    return '${AppConfig.imagesUrl}/$imagenPath';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 800;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Stack(
       children: [
@@ -125,9 +146,9 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con botón de volver
-              _buildHeader(),
-              const SizedBox(height: 20),
+              // Header con botón de volver - SOLO en escritorio
+              if (!isMobile) _buildHeader(),
+              if (!isMobile) const SizedBox(height: 20),
               
               Expanded(
                 child: _isLoading
@@ -160,7 +181,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                             _nuevaImagenSeleccionada = imageFile;
                                           });
                                         },
-                                        currentImageUrl: widget.articulo.imagenCompletaUrl,
+                                        currentImageUrl: _buildImageUrl(widget.articulo.imagenPath ?? ''),
                                         nombreArticulo: widget.articulo.categoriaNombre,
                                         marca: widget.articulo.marcaNombre,
                                         referencia: _referenciaController.text,
@@ -175,7 +196,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                             children: [
                                               // Referencia
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildTextField(
                                                   controller: _referenciaController,
                                                   label: 'Referencia *',
@@ -184,7 +205,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                               ),
                                               // Ubicación en bodega
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildTextField(
                                                   controller: _ubicacionBodegaController,
                                                   label: 'Ubicación en Bodega *',
@@ -193,7 +214,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                               ),
                                               // Tipo de artículo
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildDropdown(
                                                   value: _tipoArticulo,
                                                   label: 'Tipo de Artículo *',
@@ -207,7 +228,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                               ),
                                               // Bodega
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildDropdown(
                                                   value: _tipoBodega,
                                                   label: 'Bodega *',
@@ -221,8 +242,26 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                       ),
                                       const SizedBox(height: 32),
                                       
-                                      // Botones de acción
-                                      _buildActionButtons(),
+                                      // Botón de actualizar
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 50,
+                                        child: ElevatedButton.icon(
+                                          onPressed: _isLoading ? null : _actualizarArticulo,
+                                          icon: const Icon(Icons.save),
+                                          label: Text(
+                                            _isLoading ? 'Actualizando...' : 'Actualizar Artículo',
+                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFFf59e0b),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -244,7 +283,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       children: [
         IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: widget.onCancelar ?? () {},
+          onPressed: widget.onCancelar,
           tooltip: 'Volver a la lista',
         ),
         const SizedBox(width: 8),
@@ -295,48 +334,6 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       ),
     );
   }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: widget.onCancelar,
-            icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancelar'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white54),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : _actualizarArticulo,
-            icon: const Icon(Icons.save),
-            label: Text(
-              _isLoading ? 'Actualizando...' : 'Actualizar Artículo',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFf59e0b),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -417,6 +414,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
+          validator: (value) => value == null ? 'Campo requerido' : null,
         ),
       ],
     );

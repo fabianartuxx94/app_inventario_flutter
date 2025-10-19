@@ -100,8 +100,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     }
   }
 
-  // MÉTODOS FALTANTES - AGREGAR AQUÍ
-
   String _getNombreCategoria() {
     if (_categoriaId == null) return '';
     try {
@@ -131,7 +129,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     if (nombreCategoria.isEmpty) return;
 
     try {
-      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
       
       final Map<String, dynamic> nuevaCategoria = {
         'id': DateTime.now().millisecondsSinceEpoch,
@@ -164,7 +162,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     if (nombreMarca.isEmpty) return;
 
     try {
-      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
       
       final Map<String, dynamic> nuevaMarca = {
         'id': DateTime.now().millisecondsSinceEpoch,
@@ -320,11 +318,9 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     );
   }
 
-  // FIN DE MÉTODOS FALTANTES
-
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 800;
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     return Stack(
       children: [
@@ -335,9 +331,9 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con botón de volver
-              _buildHeader(),
-              const SizedBox(height: 20),
+              // Header con botón atrás - SOLO en escritorio
+              if (isDesktop) _buildHeader(),
+              if (isDesktop) const SizedBox(height: 20),
               
               Expanded(
                 child: _cargandoCategorias || _cargandoMarcas || _isLoading
@@ -360,6 +356,12 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                                   key: _formKey,
                                   child: Column(
                                     children: [
+                                      // Título dentro del card - SOLO en escritorio
+                                      if (isDesktop) ...[
+                                        _buildTitle(),
+                                        const SizedBox(height: 20),
+                                      ],
+                                      
                                       ImageUploader(
                                         onImageSelected: (imageFile) {
                                           setState(() => _imagenSeleccionada = imageFile);
@@ -378,17 +380,17 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                                             children: [
                                               // Búsqueda de categoría
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildCategoriaSearch(),
                                               ),
                                               // Búsqueda de marca
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildMarcaSearch(),
                                               ),
                                               // Referencia
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildTextField(
                                                   controller: _referenciaController,
                                                   label: 'Referencia *',
@@ -397,7 +399,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                                               ),
                                               // Ubicación en bodega
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildTextField(
                                                   controller: _ubicacionBodegaController,
                                                   label: 'Ubicación en Bodega *',
@@ -406,7 +408,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                                               ),
                                               // Tipo de artículo
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildDropdown(
                                                   value: _tipoArticulo,
                                                   label: 'Tipo de Artículo *',
@@ -416,7 +418,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                                               ),
                                               // Bodega
                                               SizedBox(
-                                                width: isWide ? constraints.maxWidth / 2 - 20 : double.infinity,
+                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
                                                 child: _buildDropdown(
                                                   value: _tipoBodega,
                                                   label: 'Bodega *',
@@ -453,7 +455,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
       children: [
         IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: widget.onCancelar ?? () {},
+          onPressed: widget.onCancelar,
           tooltip: 'Volver a la lista',
         ),
         const SizedBox(width: 8),
@@ -468,25 +470,51 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildTitle() {
     return Row(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: widget.onCancelar,
-            icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancelar'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white54),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        const Icon(
+          Icons.add_circle_outline,
+          color: Color(0xFFf59e0b),
+          size: 28,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'Crear Nuevo Artículo',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+    return Row(
+      children: [
+        // Botón cancelar - SOLO en escritorio
+        if (isDesktop) ...[
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: widget.onCancelar,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancelar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 16),
+          const SizedBox(width: 16),
+        ],
+        
         Expanded(
           child: ElevatedButton.icon(
             onPressed: _isLoading ? null : _crearArticulo,

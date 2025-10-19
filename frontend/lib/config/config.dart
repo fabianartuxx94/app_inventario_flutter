@@ -8,8 +8,7 @@ class AppConfig {
   
   // Cambiar getters por constantes
   static const String apiUrl = '$baseUrl/api';
-  static const String uploadsUrl = '$baseUrl/uploads';
-  
+  static const String imagesUrl = '$baseUrl/uploads/images/articulos';
   // Método para mostrar configuración actual
   static void printConfig() {
     if (kDebugMode) {
@@ -23,9 +22,6 @@ class AppConfig {
     }
     if (kDebugMode) {
       print('   • API: $apiUrl');
-    }
-    if (kDebugMode) {
-      print('   • Uploads: $uploadsUrl');
     }
   }
 }

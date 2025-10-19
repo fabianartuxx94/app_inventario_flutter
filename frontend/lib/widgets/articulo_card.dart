@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/articulo_model.dart';
+import '../config/config.dart';
 
 class ArticuloCard extends StatelessWidget {
   final Articulo articulo;
@@ -15,15 +16,15 @@ class ArticuloCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final imageHeight = screenHeight * 0.2;
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
+          colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1a2235),
-            Color(0xFF1e293b),
-          ],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -37,68 +38,32 @@ class ArticuloCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header con imagen y botones de acción
+          // 📷 Imagen con acciones
           Stack(
             children: [
-              // Imagen del artículo
-              _buildImageSection(),
-              
-              // Overlay gradiente en la imagen
+              _buildImageSection(imageHeight),
+
+              // Gradiente encima de imagen
               Container(
-                height: 120,
+                height: imageHeight,
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   gradient: LinearGradient(
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.3),
-                    ],
                   ),
                 ),
               ),
 
-              // Botones de acción
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 16),
-                        color: const Color(0xFF60a5fa),
-                        onPressed: onEdit,
-                        tooltip: 'Editar artículo',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, size: 16),
-                        color: const Color(0xFFf87171),
-                        onPressed: onDelete,
-                        tooltip: 'Eliminar artículo',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Badge de tipo en esquina superior izquierda
+              // Etiqueta tipo artículo
               Positioned(
                 top: 8,
                 left: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getColorPorTipo(articulo.tipoArticulo).withOpacity(0.9),
+                    color: _getColorPorTipo(articulo.tipoArticulo),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -106,143 +71,81 @@ class ArticuloCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
+                ),
+              ),
+
+              // Botones editar y eliminar
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 16, color: Color(0xFF60a5fa)),
+                        onPressed: onEdit,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 16, color: Color(0xFFf87171)),
+                        onPressed: onDelete,
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
 
-          // Contenido
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Marca y Referencia
-                  Text(
-                    articulo.referencia,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      height: 1.2,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+          // 📋 Información del artículo
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Categoría
+                Text(
+                  articulo.categoriaNombre,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
+                ),
 
-                  // Marca
-                  Text(
-                    articulo.marcaNombre,
-                    style: const TextStyle(
-                      color: Color(0xFF94a3b8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                // Marca y referencia
+                Text(
+                  '${articulo.marcaNombre} - ${articulo.referencia}',
+                  style: const TextStyle(
+                    color: Color(0xFFcbd5e1),
+                    fontSize: 12,
                   ),
-                  const SizedBox(height: 6),
+                ),
 
-                  // Categoría
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.category,
-                        size: 12,
-                        color: Color(0xFF94a3b8),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          articulo.categoriaNombre,
-                          style: const TextStyle(
-                            color: Color(0xFF94a3b8),
-                            fontSize: 11,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 8),
+
+                // Detalles
+                _infoRow(Icons.location_on, 'Ubicación: ${articulo.ubicacionBodega}'),
+                _infoRow(Icons.qr_code, 'Referencia: ${articulo.referencia}'),
+                _infoRow(Icons.category, 'Tipo Artículo: ${articulo.tipoArticulo}'),
+                _infoRow(Icons.warehouse, 'Tipo Bodega: ${articulo.tipoBodega}'),
+
+                const SizedBox(height: 8),
+
+                // Etiquetas como chips
+                if (articulo.etiquetas != null)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: _buildEtiquetasChips(articulo.etiquetas!),
                   ),
-                  const SizedBox(height: 8),
-
-                  // Información de ubicación y stock
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Ubicación
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 12,
-                              color: Color(0xFF94a3b8),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                '${articulo.tipoBodega} • ${articulo.ubicacionBodega.isNotEmpty ? articulo.ubicacionBodega : 'Sin ubicación'}',
-                                style: const TextStyle(
-                                  color: Color(0xFF94a3b8),
-                                  fontSize: 11,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-
-                        // Stock mínimo
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1e293b),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: articulo.stockMinimo > 0 
-                                  ? const Color(0xFF10b981).withOpacity(0.3)
-                                  : const Color(0xFFef4444).withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.inventory_2,
-                                size: 10,
-                                color: articulo.stockMinimo > 0 
-                                    ? const Color(0xFF10b981)
-                                    : const Color(0xFFef4444),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Stock: ${articulo.stockMinimo}',
-                                style: TextStyle(
-                                  color: articulo.stockMinimo > 0 
-                                      ? const Color(0xFF10b981)
-                                      : const Color(0xFFef4444),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ],
@@ -250,102 +153,99 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageSection() {
+  /// Imagen del artículo
+  Widget _buildImageSection(double height) {
     final imageUrl = _buildImageUrl(articulo.imagenPath ?? '');
-    
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2a2f40),
-            Color(0xFF374151),
-          ],
-        ),
-      ),
+
+    return SizedBox(
+      height: height,
       child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => _buildPlaceholderContent(height),
+          loadingBuilder: (_, child, loadingProgress) {
             if (loadingProgress == null) return child;
-            return Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
-                color: const Color(0xFFf59e0b),
-              ),
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
             );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return _buildPlaceholderContent();
           },
         ),
       ),
     );
   }
 
-  Widget _buildPlaceholderContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  /// Placeholder sin imagen
+  Widget _buildPlaceholderContent(double height) {
+    return Container(
+      height: height,
+      decoration: const BoxDecoration(
+        color: Color(0xFF2a2f40),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: const Center(
+        child: Icon(Icons.image_not_supported, color: Colors.white54, size: 32),
+      ),
+    );
+  }
+
+  /// Fila con icono y texto
+  Widget _infoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
         children: [
-          Icon(
-            Icons.inventory_2,
-            size: 32,
-            color: const Color(0xFF94a3b8).withOpacity(0.7),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            articulo.categoriaNombre,
-            style: TextStyle(
-              color: const Color(0xFF94a3b8).withOpacity(0.7),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+          Icon(icon, size: 12, color: Color(0xFF94a3b8)),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Color(0xFF94a3b8), fontSize: 11),
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
+  /// Chips de etiquetas
+  List<Widget> _buildEtiquetasChips(String etiquetasStr) {
+    final etiquetas = etiquetasStr
+        .replaceAll('[', '')
+        .replaceAll(']', '')
+        .replaceAll('"', '')
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    return etiquetas.map((etiqueta) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 16, 7, 134),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          etiqueta,
+          style: const TextStyle(color: Colors.white, fontSize: 10),
+        ),
+      );
+    }).toList();
+  }
+
+  /// Construcción de URL de imagen
   String _buildImageUrl(String imagenPath) {
-    if (imagenPath.isEmpty) {
-      return _getPlaceholderImage(articulo.categoriaNombre);
-    }
-    
-    // Si la imagen ya es una URL completa, úsala
-    if (imagenPath.startsWith('http')) {
-      return imagenPath;
-    }
-    
-    // Si es una ruta relativa, construye la URL completa
-    // CAMBIA 'http://localhost:3000' por tu dominio real
-    final baseUrl = 'http://localhost:3000'; // o 'https://tu-dominio.com'
-    
-    // Remover slash inicial si existe
-    final cleanPath = imagenPath.startsWith('/') ? imagenPath.substring(1) : imagenPath;
-    
-    return '$baseUrl/$cleanPath';
+    if (imagenPath.isEmpty) return "";
+    if (imagenPath.startsWith('http')) return imagenPath;
+    if (imagenPath.startsWith('/uploads')) return '${AppConfig.baseUrl}$imagenPath';
+    return '${AppConfig.imagesUrl}/$imagenPath';
   }
 
-  String _getPlaceholderImage(String categoria) {
-    // Solo usar placeholder si no hay imagen real
-    return 'https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&h=300&fit=crop';
-  }
-
+  /// Texto bonito para tipo de artículo
   String _getTipoDisplay(String tipoArticulo) {
     switch (tipoArticulo) {
       case 'Activo Fijo':
@@ -359,6 +259,7 @@ class ArticuloCard extends StatelessWidget {
     }
   }
 
+  /// Color de fondo por tipo de artículo
   Color _getColorPorTipo(String tipoArticulo) {
     switch (tipoArticulo) {
       case 'Activo Fijo':

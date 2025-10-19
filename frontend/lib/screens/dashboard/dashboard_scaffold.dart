@@ -35,25 +35,41 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     "Configuración",
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar con ArticulosScreen que tiene los callbacks
+    _currentPage = ArticulosScreen(
+      onCrearArticulo: _navigateToCrearArticulo,
+      onEditarArticulo: _navigateToEditarArticulo,
+    );
+  }
+
   void _onItemSelected(int index) {
     setState(() {
       _selectedIndex = index;
-      _currentPage = _mainPages[index];
+      if (index == 2) {
+        // Artículos - mantener con callbacks
+        _currentPage = ArticulosScreen(
+          onCrearArticulo: _navigateToCrearArticulo,
+          onEditarArticulo: _navigateToEditarArticulo,
+        );
+      } else {
+        _currentPage = _mainPages[index];
+      }
     });
   }
 
-  // Navegar a crear artículo (dentro del espacio de artículos)
   void _navigateToCrearArticulo() {
     setState(() {
       _currentPage = CrearArticuloScreen(
         onArticuloCreado: _volverAListaArticulos,
         onCancelar: _volverAListaArticulos,
       );
-      _selectedIndex = 2; // Mantener Artículos seleccionado en sidebar
+      _selectedIndex = 2;
     });
   }
 
-  // Navegar a editar artículo (dentro del espacio de artículos)
   void _navigateToEditarArticulo(dynamic articulo) {
     setState(() {
       _currentPage = EditarArticuloScreen(
@@ -61,26 +77,69 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
         onArticuloActualizado: _volverAListaArticulos,
         onCancelar: _volverAListaArticulos,
       );
-      _selectedIndex = 2; // Mantener Artículos seleccionado en sidebar
+      _selectedIndex = 2;
     });
   }
 
-  // Volver a la lista de artículos
   void _volverAListaArticulos() {
     setState(() {
-      _currentPage = const ArticulosScreen();
+      _currentPage = ArticulosScreen(
+        onCrearArticulo: _navigateToCrearArticulo,
+        onEditarArticulo: _navigateToEditarArticulo,
+      );
       _selectedIndex = 2;
     });
   }
 
   void _logout() {
-    Provider.of<AuthProvider>(context, listen: false).logout();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
-  }
+  // Mostrar diálogo de confirmación personalizado
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Colors.red),
+            SizedBox(width: 10),
+            Text("Cerrar sesión"),
+          ],
+        ),
+        content: const Text(
+          "¿Estás seguro de que quieres cerrar sesión?",
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Cerrar el diálogo
+            },
+            child: const Text(
+              "Cancelar",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.of(context).pop(); // Cerrar el diálogo
+              // Proceder con el cierre de sesión
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            },
+            child: const Text("Cerrar sesión"),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +164,6 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     );
   }
 
-  // ---------------------- 🖥️ Sidebar escritorio ----------------------
   Widget _buildSidebar() {
     final items = [
       ('Dashboard', Icons.dashboard),
@@ -155,27 +213,35 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     );
   }
 
-  // ---------------------- 📱 Vista móvil ----------------------
-  Widget _buildMobileView(BuildContext context) {
-    return Scaffold(
+ Widget _buildMobileView(BuildContext context) {
+  final isCrearArticulo = _currentPage is CrearArticuloScreen;
+  final isEditarArticulo = _currentPage is EditarArticuloScreen;
+
+  return Scaffold(
+    backgroundColor: Colors.transparent,
+    appBar: AppBar(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: _buildAppBarTitle(),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            color: Colors.white,
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(context),
-      body: _currentPage,
-    );
-  }
+      elevation: 0,
+      leading: isCrearArticulo || isEditarArticulo
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: _volverAListaArticulos,
+            )
+          : null,
+      iconTheme: const IconThemeData(color: Colors.white),
+      title: _buildAppBarTitle(),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout),
+          color: Colors.white,
+          onPressed: _logout,
+        ),
+      ],
+    ),
+    drawer: isCrearArticulo || isEditarArticulo ? null : _buildDrawer(context),
+    body: _currentPage,
+  );
+}
 
   Widget _buildAppBarTitle() {
     if (_currentPage is CrearArticuloScreen) {
@@ -249,7 +315,6 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
   }
 }
 
-// ---------------------- 🏠 Pantalla principal ----------------------
 class DashboardHome extends StatelessWidget {
   const DashboardHome({super.key});
 

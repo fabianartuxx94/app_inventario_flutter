@@ -1,3 +1,5 @@
+import '../config/config.dart'; // Asegúrate de importar tu AppConfig
+
 class Articulo {
   final int? articuloId;
   final int categoriaId;
@@ -11,7 +13,7 @@ class Articulo {
   final String? imagenPath;
   final String? creadoEn;
   final int stockMinimo;
-  final String? etiquetas;
+  final String? etiquetas; // ✅ Cambiado a lista
 
   Articulo({
     this.articuloId,
@@ -57,36 +59,25 @@ class Articulo {
       'tipo_articulo': tipoArticulo,
       'ubicacion_bodega': ubicacionBodega,
       'imagen_path': imagenPath,
+      'stock_minimo': stockMinimo,
+      if (etiquetas != null) 'etiquetas': etiquetas,
     };
   }
 
-  // ✅ AGREGAR ESTE GETTER para imagenCompletaUrl
+  /// ✅ Getter para imagen completa usando AppConfig
   String get imagenCompletaUrl {
-    if (imagenPath == null || imagenPath!.isEmpty) {
-      return '';
-    }
-    
-    // Si ya es una URL completa
-    if (imagenPath!.startsWith('http')) {
-      return imagenPath!;
-    }
-    
-    // Si empieza con /uploads
-    if (imagenPath!.startsWith('/uploads')) {
-      // Reemplaza con tu dominio real
-      return 'https://tu-dominio.com$imagenPath';
-    }
-    
-    // Para rutas relativas
-    return 'https://tu-dominio.com/uploads$imagenPath';
+    if (imagenPath == null || imagenPath!.isEmpty) return '';
+
+    if (imagenPath!.startsWith('http')) return imagenPath!;
+    if (imagenPath!.startsWith('/uploads')) return '${AppConfig.baseUrl}$imagenPath';
+
+    return '${AppConfig.imagesUrl}/$imagenPath';
   }
 
-  // ✅ OPCIONAL: Getter para mostrar nombre completo
-  String get nombreCompleto {
-    return '$marcaNombre $referencia';
-  }
+  /// ✅ Nombre completo para mostrar
+  String get nombreCompleto => '$marcaNombre $referencia';
 
-  // ✅ OPCIONAL: Getter para tipo display más corto
+  /// ✅ Tipo legible
   String get tipoDisplay {
     switch (tipoArticulo) {
       case 'Activo Fijo':

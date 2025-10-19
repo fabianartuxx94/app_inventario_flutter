@@ -9,7 +9,7 @@ import '../config/config.dart';
 
 class UploadService {
   // Cambiar de const a final (ya que no es constante en tiempo de compilación)
-  static final String baseUrl = AppConfig.apiUrl;
+  static final String baseUrl = AppConfig.baseUrl;
 
   // Subir imagen con token y datos del artículo
   static Future<Map<String, dynamic>> uploadImage(
@@ -195,7 +195,7 @@ class UploadService {
   
   // CASO 2: Si es solo el nombre del archivo
   if (!imagePath.contains('/')) {
-    final url = '${AppConfig.uploadsUrl}/images/articulos/$imagePath';
+    final url = '${AppConfig. baseUrl}/images/articulos/$imagePath';
     if (kDebugMode) {
       print('   🎯 URL desde nombre archivo: $url');
     }
@@ -203,7 +203,7 @@ class UploadService {
   }
   
   // CASO 3: Para cualquier otro caso
-  final url = '${AppConfig.uploadsUrl}/$imagePath';
+  final url = '${AppConfig.baseUrl}/$imagePath';
   if (kDebugMode) {
     print('   🎯 URL desde ruta relativa: $url');
   }

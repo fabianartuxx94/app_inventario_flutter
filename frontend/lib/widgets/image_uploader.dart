@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/config/config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 // 👈 Añade esta importación
@@ -121,14 +122,12 @@ class _ImageUploaderState extends State<ImageUploader> {
 
   // Método auxiliar para obtener la URL completa de la imagen
   String _getImageUrl(String imagePath) {
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    } else {
-      // Si es una ruta relativa, construir la URL completa
-      // Ajusta esta lógica según tu configuración de backend
-      return 'https://tu-backend.com/uploads/$imagePath';
-    }
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  } else {
+    return '${AppConfig.baseUrl}/$imagePath';
   }
+}
 
   Widget _buildImagePreview() {
     // Mostrar imagen SELECCIONADA (temporal)
