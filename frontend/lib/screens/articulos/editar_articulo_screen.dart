@@ -395,7 +395,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           dropdownColor: const Color(0xFF2d3748),
           style: const TextStyle(color: Colors.white),
           onChanged: onChanged,

@@ -142,8 +142,8 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
           onPressed: () => Navigator.pop(context),
         ),
         ElevatedButton(
-          child: Text(_isEdit ? 'Actualizar' : 'Guardar'),
           onPressed: _guardarCategoria,
+          child: Text(_isEdit ? 'Actualizar' : 'Guardar'),
         ),
       ],
     );

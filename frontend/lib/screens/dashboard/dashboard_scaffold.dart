@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../categorias/categorias_page.dart';
+import '../categorias/categorias_page.dart'; // ← Asegurar que esté importada
 import '../articulos/articulos_screen.dart';
 import '../articulos/crear_articulo_screen.dart';
 import '../articulos/editar_articulo_screen.dart';
@@ -19,27 +19,15 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
   int _selectedIndex = 0;
   Widget _currentPage = const DashboardHome();
 
-  final List<Widget> _mainPages = const [
-    DashboardHome(),
-    CategoriasPage(),
-    ArticulosScreen(),
-    Placeholder(), // Reportes
-    Placeholder(), // Configuración
-  ];
-
-  final List<String> _titles = [
-    "Dashboard",
-    "Categorías",
-    "Artículos",
-    "Reportes",
-    "Configuración",
-  ];
-
   @override
   void initState() {
     super.initState();
-    // Inicializar con ArticulosScreen que tiene los callbacks
-    _currentPage = ArticulosScreen(
+    _currentPage = _buildArticulosScreen();
+  }
+
+  // Método para construir ArticulosScreen con los callbacks
+  Widget _buildArticulosScreen() {
+    return ArticulosScreen(
       onCrearArticulo: _navigateToCrearArticulo,
       onEditarArticulo: _navigateToEditarArticulo,
     );
@@ -50,14 +38,38 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
       _selectedIndex = index;
       if (index == 2) {
         // Artículos - mantener con callbacks
-        _currentPage = ArticulosScreen(
-          onCrearArticulo: _navigateToCrearArticulo,
-          onEditarArticulo: _navigateToEditarArticulo,
-        );
+        _currentPage = _buildArticulosScreen();
       } else {
-        _currentPage = _mainPages[index];
+        // Para otras páginas
+        _currentPage = _buildPageForIndex(index);
       }
     });
+  }
+
+  Widget _buildPageForIndex(int index) {
+    switch (index) {
+      case 0:
+        return const DashboardHome();
+      case 1:
+        return const CategoriasPage(); // ← Categorías agregada
+      case 2:
+        return _buildArticulosScreen();
+      case 3:
+        return _buildPlaceholderPage("Reportes");
+      case 4:
+        return _buildPlaceholderPage("Configuración");
+      default:
+        return const DashboardHome();
+    }
+  }
+
+  Widget _buildPlaceholderPage(String title) {
+    return Center(
+      child: Text(
+        "$title - En desarrollo",
+        style: const TextStyle(color: Colors.white, fontSize: 22),
+      ),
+    );
   }
 
   void _navigateToCrearArticulo() {
@@ -71,6 +83,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
   }
 
   void _navigateToEditarArticulo(dynamic articulo) {
+    print("Navegando a editar artículo: ${articulo.referencia}");
     setState(() {
       _currentPage = EditarArticuloScreen(
         articulo: articulo,
@@ -83,63 +96,40 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
 
   void _volverAListaArticulos() {
     setState(() {
-      _currentPage = ArticulosScreen(
-        onCrearArticulo: _navigateToCrearArticulo,
-        onEditarArticulo: _navigateToEditarArticulo,
-      );
+      _currentPage = _buildArticulosScreen();
       _selectedIndex = 2;
     });
   }
 
   void _logout() {
-  // Mostrar diálogo de confirmación personalizado
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.logout, color: Colors.red),
-            SizedBox(width: 10),
-            Text("Cerrar sesión"),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Cerrar sesión"),
+          content: const Text("¿Estás seguro de que quieres cerrar sesión?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Provider.of<AuthProvider>(context, listen: false).logout();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              },
+              child: const Text("Sí, cerrar sesión"),
+            ),
           ],
-        ),
-        content: const Text(
-          "¿Estás seguro de que quieres cerrar sesión?",
-          style: TextStyle(fontSize: 16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Cerrar el diálogo
-            },
-            child: const Text(
-              "Cancelar",
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.of(context).pop(); // Cerrar el diálogo
-              // Proceder con el cierre de sesión
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-                (route) => false,
-              );
-            },
-            child: const Text("Cerrar sesión"),
-          ),
-        ],
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -213,35 +203,41 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     );
   }
 
- Widget _buildMobileView(BuildContext context) {
-  final isCrearArticulo = _currentPage is CrearArticuloScreen;
-  final isEditarArticulo = _currentPage is EditarArticuloScreen;
+  Widget _buildMobileView(BuildContext context) {
+    final isCrearArticulo = _currentPage is CrearArticuloScreen;
+    final isEditarArticulo = _currentPage is EditarArticuloScreen;
+    final isCategoriasPage = _currentPage is CategoriasPage;
 
-  return Scaffold(
-    backgroundColor: Colors.transparent,
-    appBar: AppBar(
+    return Scaffold(
       backgroundColor: Colors.transparent,
-      elevation: 0,
-      leading: isCrearArticulo || isEditarArticulo
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: _volverAListaArticulos,
-            )
-          : null,
-      iconTheme: const IconThemeData(color: Colors.white),
-      title: _buildAppBarTitle(),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout),
-          color: Colors.white,
-          onPressed: _logout,
-        ),
-      ],
-    ),
-    drawer: isCrearArticulo || isEditarArticulo ? null : _buildDrawer(context),
-    body: _currentPage,
-  );
-}
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: isCrearArticulo || isEditarArticulo
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: _volverAListaArticulos,
+              )
+            : isCategoriasPage && _selectedIndex != 1
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => _onItemSelected(0),
+                  )
+                : null,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: _buildAppBarTitle(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            color: Colors.white,
+            onPressed: _logout,
+          ),
+        ],
+      ),
+      drawer: (isCrearArticulo || isEditarArticulo) ? null : _buildDrawer(context),
+      body: _currentPage,
+    );
+  }
 
   Widget _buildAppBarTitle() {
     if (_currentPage is CrearArticuloScreen) {
@@ -254,15 +250,28 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
         'Editar Artículo',
         style: TextStyle(color: Colors.white),
       );
+    } else if (_currentPage is ArticulosScreen) {
+      return const Text(
+        'Artículos',
+        style: TextStyle(color: Colors.white),
+      );
+    } else if (_currentPage is CategoriasPage) {
+      return const Text(
+        'Categorías',
+        style: TextStyle(color: Colors.white),
+      );
     } else {
+      final titles = ["Dashboard", "Categorías", "Artículos", "Reportes", "Configuración"];
       return Text(
-        _titles[_selectedIndex],
+        titles[_selectedIndex],
         style: const TextStyle(color: Colors.white),
       );
     }
   }
 
   Widget _buildDrawer(BuildContext context) {
+    final titles = ["Dashboard", "Categorías", "Artículos", "Reportes", "Configuración"];
+    
     return Drawer(
       backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
       child: Column(
@@ -275,7 +284,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
             style: TextStyle(color: Colors.white, fontSize: 18),
           ),
           const SizedBox(height: 20),
-          for (int i = 0; i < _titles.length; i++)
+          for (int i = 0; i < titles.length; i++)
             ListTile(
               leading: Icon(
                 [
@@ -288,7 +297,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
                 color: Colors.white,
               ),
               title: Text(
-                _titles[i],
+                titles[i],
                 style: const TextStyle(color: Colors.white),
               ),
               selected: _selectedIndex == i,

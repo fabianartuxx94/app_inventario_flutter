@@ -22,7 +22,14 @@ class ArticulosScreen extends StatefulWidget {
 
 class _ArticulosScreenState extends State<ArticulosScreen> {
   List<Articulo> _articulos = [];
+  List<Articulo> _filteredArticulos = [];
   bool _isLoading = true;
+  String _searchTerm = '';
+  String _filterTipoArticulo = 'Todos';
+  
+  // Variables para el zoom
+  Articulo? _articuloSeleccionadoZoom;
+  bool _mostrarZoom = false;
 
   @override
   void initState() {
@@ -36,6 +43,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
       final articulos = await ArticuloService.obtenerArticulos(token);
       setState(() {
         _articulos = articulos;
+        _filteredArticulos = articulos;
         _isLoading = false;
       });
     } catch (e) {
@@ -55,8 +63,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF001F5E),
-        title: const Text('Confirmar eliminación',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('Confirmar eliminación', style: TextStyle(color: Colors.white)),
         content: Text(
           '¿Estás seguro de eliminar ${articulo.marcaNombre} ${articulo.referencia}?',
           style: const TextStyle(color: Colors.white70),
@@ -68,8 +75,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar',
-                style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -78,17 +84,10 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
     if (confirmado == true) {
       try {
         final token = Provider.of<AuthProvider>(context, listen: false).token!;
-        final resultado = await ArticuloService.eliminarArticulo(
-          articulo.articuloId!, 
-          token
-        );
-
+        final resultado = await ArticuloService.eliminarArticulo(articulo.articuloId!, token);
         if (resultado['success'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(resultado['message']!),
-              backgroundColor: Colors.green,
-            ),
+            SnackBar(content: Text(resultado['message']!), backgroundColor: Colors.green),
           );
           _cargarArticulos();
         } else {
@@ -100,74 +99,182 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+  void _filterArticulos() {
+    List<Articulo> tempList = _articulos;
 
-    // Ajuste responsive del número de columnas
-    int crossAxisCount = 1;
-    if (screenWidth >= 1200) {
-      crossAxisCount = 4;
-    } else if (screenWidth >= 900) {
-      crossAxisCount = 3;
-    } else if (screenWidth >= 600) {
-      crossAxisCount = 2;
+    if (_filterTipoArticulo != 'Todos') {
+      tempList = tempList.where((a) => a.tipoArticulo == _filterTipoArticulo).toList();
     }
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      floatingActionButton: widget.onCrearArticulo != null 
-          ? FloatingActionButton(
-              onPressed: widget.onCrearArticulo,
-              backgroundColor: const Color(0xFF0948d6),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
-      body: Stack(
-        children: [
-          const CustomBackground(),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                // Header con estadísticas
-                _buildHeader(),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                      : _articulos.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No hay artículos disponibles',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 16),
-                              ),
-                            )
-                          : GridView.builder(
-                              padding: const EdgeInsets.only(bottom: 80),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                crossAxisSpacing: 20,
-                                mainAxisSpacing: 20,
-                                childAspectRatio: 0.8,
-                              ),
-                              itemCount: _articulos.length,
-                              itemBuilder: (context, index) {
-                                final articulo = _articulos[index];
-                                return ArticuloCard(
-                                  articulo: articulo,
-                                  onEdit: () => widget.onEditarArticulo?.call(articulo),
-                                  onDelete: () => _eliminarArticulo(articulo),
-                                );
-                              },
-                            ),
-                ),
-              ],
-            ),
+    if (_searchTerm.isNotEmpty) {
+      final lowerSearch = _searchTerm.toLowerCase();
+      tempList = tempList.where((a) {
+        return a.categoriaNombre.toLowerCase().contains(lowerSearch) ||
+               a.marcaNombre.toLowerCase().contains(lowerSearch) ||
+               a.referencia.toLowerCase().contains(lowerSearch);
+      }).toList();
+    }
+
+    setState(() {
+      _filteredArticulos = tempList;
+    });
+  }
+
+  // Método para mostrar/ocultar el zoom
+  void _toggleZoomArticulo(Articulo? articulo) {
+    setState(() {
+      if (articulo == null) {
+        _mostrarZoom = false;
+        _articuloSeleccionadoZoom = null;
+      } else {
+        _mostrarZoom = true;
+        _articuloSeleccionadoZoom = articulo;
+      }
+    });
+  }
+
+  @override
+Widget build(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isMobile = screenWidth < 600;
+  
+  int crossAxisCount;
+  double childAspectRatio;
+  
+  if (isMobile) {
+    crossAxisCount = 2;
+    childAspectRatio = 0.7;
+  } else if (screenWidth >= 1200) {
+    crossAxisCount = 4;
+    childAspectRatio = 0.8;
+  } else if (screenWidth >= 900) {
+    crossAxisCount = 3;
+    childAspectRatio = 0.75;
+  } else {
+    crossAxisCount = 2;
+    childAspectRatio = 0.7;
+  }
+
+  return Scaffold(
+    // ⭐ OCULTAR FLOATING ACTION BUTTON EN MODO ZOOM ⭐
+    floatingActionButton: (_mostrarZoom || widget.onCrearArticulo == null) 
+        ? null 
+        : FloatingActionButton(
+            onPressed: widget.onCrearArticulo,
+            backgroundColor: const Color(0xFF0948d6),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
-        ],
+    backgroundColor: Colors.transparent,
+    body: Stack(
+      children: [
+        const CustomBackground(),
+        Padding(
+          padding: EdgeInsets.all(isMobile ? 12.0 : 20.0),
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 20),
+              _buildSearchBar(),
+              const SizedBox(height: 10),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : _filteredArticulos.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No hay artículos disponibles',
+                              style: TextStyle(color: Colors.white70, fontSize: 16),
+                            ),
+                          )
+                        : GridView.builder(
+                            padding: EdgeInsets.only(
+                              bottom: isMobile ? 70 : 80,
+                              top: 8,
+                            ),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: isMobile ? 12 : 16,
+                              mainAxisSpacing: isMobile ? 12 : 16,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemCount: _filteredArticulos.length,
+                            itemBuilder: (context, index) {
+                              final articulo = _filteredArticulos[index];
+
+                              return ArticuloCard(
+                                articulo: articulo,
+                                isSelected: false,
+                                isZoomMode: false,
+                                onEdit: () {
+                                  widget.onEditarArticulo?.call(articulo);
+                                },
+                                onDelete: () {
+                                  _eliminarArticulo(articulo);
+                                },
+                                onSelect: () => _toggleZoomArticulo(articulo),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Overlay de zoom
+        if (_mostrarZoom && _articuloSeleccionadoZoom != null)
+          _buildOverlayZoom(context),
+      ],
+    ),
+  );
+}
+
+  Widget _buildOverlayZoom(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 500;
+    
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTap: () => _toggleZoomArticulo(null),
+        child: Container(
+          color: Colors.black54,
+          width: double.infinity,
+          height: double.infinity,
+          child: Stack(
+            children: [
+              // Tarjeta en el centro
+              Center(
+                child: GestureDetector(
+                  onTap: () {}, // Evita que se cierre al tocar la tarjeta
+                  child: Container(
+                    width: isMobile 
+                        ? MediaQuery.of(context).size.width * 0.95
+                        : MediaQuery.of(context).size.width * 0.6,
+                    height: isMobile
+                        ? MediaQuery.of(context).size.height * 0.85
+                        : MediaQuery.of(context).size.height * 0.9,
+                    child: Transform.scale(
+                      scale: 0.8,
+                      child: ArticuloCard(
+                        articulo: _articuloSeleccionadoZoom!,
+                        isSelected: true,
+                        isZoomMode: true, // ← TRUE para modo zoom
+                        onEdit: () {
+                          _toggleZoomArticulo(null);
+                          widget.onEditarArticulo?.call(_articuloSeleccionadoZoom!);
+                        },
+                        onDelete: () {
+                          _toggleZoomArticulo(null);
+                          _eliminarArticulo(_articuloSeleccionadoZoom!);
+                        },
+                        onSelect: () => _toggleZoomArticulo(null),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -179,7 +286,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
     final consumibles = _articulos.where((a) => a.tipoArticulo == 'Consumible').length;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           "Gestión de Artículos",
@@ -189,18 +296,18 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
               ),
         ),
         const SizedBox(height: 10),
-        // Estadísticas rápidas
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStatCard('Total', totalArticulos.toString(), Colors.blue),
+              _buildStatCard('Todos', totalArticulos.toString(), Colors.blue, 'Todos'),
               const SizedBox(width: 10),
-              _buildStatCard('Activos Fijos', activosFijos.toString(), Colors.green),
+              _buildStatCard('Activos Fijos', activosFijos.toString(), Colors.green, 'Activo Fijo'),
               const SizedBox(width: 10),
-              _buildStatCard('Activos Control', activosControl.toString(), Colors.orange),
+              _buildStatCard('Activos Control', activosControl.toString(), Colors.orange, 'Activo de Control'),
               const SizedBox(width: 10),
-              _buildStatCard('Consumibles', consumibles.toString(), Colors.red),
+              _buildStatCard('Consumibles', consumibles.toString(), Colors.red, 'Consumible'),
             ],
           ),
         ),
@@ -208,34 +315,54 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+  Widget _buildStatCard(String title, String value, Color color, String tipoFiltro) {
+    final isSelected = _filterTipoArticulo == tipoFiltro;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _filterTipoArticulo = tipoFiltro;
+          _filterArticulos();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.5) : color.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? color : color.withOpacity(0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Buscar por categoría, marca o referencia',
+        hintStyle: const TextStyle(color: Color.fromARGB(232, 255, 255, 255)),
+        prefixIcon: const Icon(Icons.search, color: Color.fromARGB(239, 255, 255, 255)),
+        filled: true,
+        fillColor: const Color.fromARGB(111, 30, 41, 59),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
       ),
+      onChanged: (value) {
+        setState(() {
+          _searchTerm = value;
+          _filterArticulos();
+        });
+      },
     );
   }
 }

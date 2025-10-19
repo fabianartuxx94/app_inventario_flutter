@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/marcas_service.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import '../../models/articulo_model.dart';
@@ -113,25 +114,30 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   }
 
   String _getNombreMarca() {
-    if (_marcaId == null) return '';
+    if (_marcaId == null) return 'No seleccionada';
     try {
       final marca = _marcas.firstWhere(
-        (m) => (m['id'] as int) == _marcaId,
+        (m) {
+          final id = m['id'];
+          if (id == null) return false;
+          return (id is int ? id : int.tryParse(id.toString())) == _marcaId;
+        },
       );
-      return marca['nombre']?.toString() ?? '';
+      return marca['nombre']?.toString() ?? 'Nombre no encontrado';
     } catch (e) {
-      return '';
+      return 'Error buscando marca: $e';
     }
   }
 
-  void _crearNuevaCategoria() async {
+  Future<void> _crearNuevaCategoria() async {
     final nombreCategoria = _categoriaSearchController.text.trim();
     if (nombreCategoria.isEmpty) return;
 
     try {
-     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      // ⭐ CREAR CATEGORÍA DIRECTAMENTE ⭐
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
       
-      final Map<String, dynamic> nuevaCategoria = {
+      final nuevaCategoria = {
         'id': DateTime.now().millisecondsSinceEpoch,
         'nombre': nombreCategoria,
         'stock_minimo': 0,
@@ -157,36 +163,67 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     }
   }
 
-  void _crearNuevaMarca() async {
-    final nombreMarca = _marcaSearchController.text.trim();
-    if (nombreMarca.isEmpty) return;
+ Future<void> _crearNuevaMarca() async {
+  final nombreMarca = _marcaSearchController.text.trim();
+  if (nombreMarca.isEmpty) return;
 
-    try {
-     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
+  setState(() => _isLoading = true);
+
+  try {
+    final token = Provider.of<AuthProvider>(context, listen: false).token!;
+    
+    final marcaData = {
+      "nombre": nombreMarca,
+    };
+
+    final resultado = await MarcasService.guardarMarca(marcaData, token);
+    
+    if (resultado['success'] == true) {
+      // ⭐ OPCIÓN 2: Recargar todas las marcas desde el servidor ⭐
+      await _recargarMarcas();
       
-      final Map<String, dynamic> nuevaMarca = {
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': nombreMarca,
-      };
-
+      // Buscar y seleccionar la nueva marca
+      final nuevaMarca = _marcas.firstWhere(
+        (marca) => marca['nombre'] == nombreMarca,
+        orElse: () => resultado['data'],
+      );
+      
       setState(() {
-        _marcas.insert(0, nuevaMarca);
         _marcaId = nuevaMarca['id'] as int;
-        _marcaSearchController.text = nombreMarca;
+        _marcaSearchController.text = nuevaMarca['nombre'];
         _mostrarCrearMarca = false;
         _mostrarListaMarcas = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Marca "$nombreMarca" creada'),
+          content: Text('✅ Marca "$nombreMarca" creada exitosamente'),
           backgroundColor: Colors.green,
         ),
       );
-    } catch (e) {
-      _mostrarError('Error al crear marca: $e');
+    } else {
+      _mostrarError(resultado['error'] ?? 'Error al crear la marca');
     }
+  } catch (e) {
+    _mostrarError('Error al crear marca: $e');
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
+
+// Método auxiliar para recargar marcas
+Future<void> _recargarMarcas() async {
+  try {
+    final token = Provider.of<AuthProvider>(context, listen: false).token!;
+    final marcas = await ArticuloService.obtenerMarcas(token);
+    
+    setState(() {
+      _marcas = marcas;
+    });
+  } catch (e) {
+    print('Error al recargar marcas: $e');
+  }
+}
 
   void _filtrarCategorias() {
     final query = _categoriaSearchController.text.toLowerCase();
@@ -626,7 +663,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                           });
                         },
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -680,60 +717,69 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
                         },
                       )
                     : null,
-              ),
-              onChanged: (value) {
-                _filtrarMarcas();
-              },
             ),
-            
-            const SizedBox(height: 8),
-            
-            // Solo mostrar lista si hay búsqueda activa
-            if (_mostrarListaMarcas && (_marcasFiltradas.isNotEmpty || _mostrarCrearMarca))
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2a2f40),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF474554)),
-                ),
-                child: Column(
-                  children: [
-                    // Opción de crear nueva marca
-                    if (_mostrarCrearMarca)
-                      ListTile(
-                        leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
-                        title: Text(
-                          'Crear "${_marcaSearchController.text}"',
-                          style: const TextStyle(color: Colors.green, fontSize: 14),
-                        ),
-                        onTap: _crearNuevaMarca,
-                      ),
-                    
-                    // Lista de marcas filtradas
-                    ..._marcasFiltradas.map((marca) {
-                      return ListTile(
-                        title: Text(
-                          marca['nombre'],
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _marcaId = marca['id'] as int;
-                            _marcaSearchController.text = marca['nombre'];
-                            _mostrarCrearMarca = false;
-                            _mostrarListaMarcas = false;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ],
-                ),
+            onChanged: (value) {
+              _filtrarMarcas();
+            },
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Solo mostrar lista si hay búsqueda activa
+          if (_mostrarListaMarcas && (_marcasFiltradas.isNotEmpty || _mostrarCrearMarca))
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF2a2f40),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF474554)),
               ),
-          ],
-        ),
-      ],
-    );
-  }
+              child: Column(
+                children: [
+                  // Opción de crear nueva marca
+                  if (_mostrarCrearMarca)
+                    ListTile(
+                      leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
+                      title: Text(
+                        'Crear "${_marcaSearchController.text}"',
+                        style: const TextStyle(color: Colors.green, fontSize: 14),
+                      ),
+                      onTap: _crearNuevaMarca,
+                    ),
+                  
+                  // Lista de marcas filtradas
+                  ..._marcasFiltradas.map((marca) {
+                    final marcaId = marca['id'];
+                    
+                    // Verificar que el ID no sea null y sea válido
+                    if (marcaId == null) {
+                      print("❌ Marca sin ID: ${marca['nombre']}");
+                      return const SizedBox.shrink(); // Omitir marcas sin ID
+                    }
+                    
+                    return ListTile(
+                      title: Text(
+                        marca['nombre'] ?? 'Sin nombre',
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          _marcaId = marcaId is int ? marcaId : int.tryParse(marcaId.toString());
+                          _marcaSearchController.text = marca['nombre'] ?? '';
+                          _mostrarCrearMarca = false;
+                          _mostrarListaMarcas = false;
+                        });
+                        print("✅ Marca seleccionada: ${marca['nombre']} (ID: $_marcaId)");
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+  ], // ← CIERRE del Column children
+      ), // ← CIERRE del Column exterior
+    ], // ← CIERRE del Column principal children
+  ); // ← CIERRE del return Column
+}
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -796,7 +842,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           dropdownColor: const Color(0xFF2d3748),
           style: const TextStyle(color: Colors.white),
           onChanged: onChanged,

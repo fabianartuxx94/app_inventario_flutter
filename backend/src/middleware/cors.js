@@ -7,9 +7,8 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:5000',
       'http://127.0.0.1:5000',
-      'http://localhost:5000',
       'http://10.192.84.125:5000', // Tu IP para desarrollo web
-      'http://localhost:54291'
+      'http://localhost:58741'
     ];
     
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
