@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:frontend/config/config.dart';
 import '../../models/articulo_model.dart';
 
+/// Widget que representa una tarjeta visual de un artículo
+/// con modo selección, zoom y acciones de editar/eliminar.
 class ArticuloCard extends StatelessWidget {
   final Articulo articulo;
   final VoidCallback onEdit;
@@ -23,153 +25,35 @@ class ArticuloCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
+    final isMobile = screenWidth < 750;
     final isDesktopZoom = isZoomMode && !isMobile;
 
-    return GestureDetector( // ⭐ CAMBIADO: Solo responde a clicks/taps
+    // Contenedor con animación de escala al seleccionarse
+    return GestureDetector(
       onTap: onSelect,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         transform: Matrix4.identity()..scale(isSelected ? 1.1 : 1.0),
-        child: isDesktopZoom 
+        child: isDesktopZoom
             ? _buildHorizontalCard(context, isMobile)
             : _buildVerticalCard(context, isMobile),
       ),
     );
   }
 
+  /// Construye la tarjeta en formato horizontal (solo para zoom en escritorio)
   Widget _buildHorizontalCard(BuildContext context, bool isMobile) {
-    double baseFontSize = 16;
+    const baseFontSize = 16.0;
 
-    return Container( // ⭐ QUITADO: GestureDetector duplicado
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Container(
+      decoration: _buildCardDecoration(),
       child: Row(
         children: [
           Expanded(
             flex: 6,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(16),
-                  ),
-                  child: Image.network(
-                    _buildImageUrl(articulo.imagenPath ?? ''),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                    loadingBuilder: (_, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
-                      );
-                    },
-                  ),
-                ),
-
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(16),
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _getColorPorTipo(articulo.tipoArticulo),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getTipoDisplay(articulo.tipoArticulo),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: baseFontSize - 2,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // BOTONES SOLO EN MODO ZOOM
-                if (isZoomMode)
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // BOTÓN EDITAR
-                            GestureDetector(
-                              onTap: () {
-                                print('✏️ Botón EDITAR presionado - ID: ${articulo.articuloId}');
-                                if (onEdit != null) {
-                                  onEdit();
-                                } else {
-                                  print('❌ ERROR: onEdit es null');
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  Icons.edit, 
-                                  color: Colors.blueAccent,
-                                  size: 24,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            // BOTÓN ELIMINAR
-                            GestureDetector(
-                              onTap: () {
-                                print('🗑️ Botón ELIMINAR presionado - ID: ${articulo.articuloId}');
-                                _mostrarDialogoEliminacion(context);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  Icons.delete, 
-                                  color: Colors.red,
-                                  size: 24,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: _buildImageSection(context, horizontal: true),
           ),
-
           Expanded(
             flex: 4,
             child: Padding(
@@ -178,6 +62,7 @@ class ArticuloCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  // Nombre de categoría
                   Text(
                     articulo.categoriaNombre,
                     maxLines: 1,
@@ -188,7 +73,7 @@ class ArticuloCard extends StatelessWidget {
                       fontSize: baseFontSize + 6,
                     ),
                   ),
-                  
+                  // Marca y referencia
                   Text(
                     '${articulo.marcaNombre} - ${articulo.referencia}',
                     maxLines: 1,
@@ -198,16 +83,14 @@ class ArticuloCard extends StatelessWidget {
                       fontSize: baseFontSize + 3,
                     ),
                   ),
-                  
                   const SizedBox(height: 8),
-                  
-                  _horizontalInfoRow(Icons.location_on, 'Ubicación:', articulo.ubicacionBodega, baseFontSize+3),
-                  _horizontalInfoRow(Icons.qr_code, 'Referencia:', articulo.referencia, baseFontSize+3),
-                  _horizontalInfoRow(Icons.category, 'Tipo Artículo:', articulo.tipoArticulo, baseFontSize+3),
-                  _horizontalInfoRow(Icons.warehouse, 'Tipo Bodega:', articulo.tipoBodega, baseFontSize+3),
-                  
+                  // Datos del artículo
+                  _horizontalInfoRow(Icons.location_on, 'Ubicación:', articulo.ubicacionBodega, baseFontSize + 3),
+                  _horizontalInfoRow(Icons.qr_code, 'Referencia:', articulo.referencia, baseFontSize + 3),
+                  _horizontalInfoRow(Icons.category, 'Tipo Artículo:', articulo.tipoArticulo, baseFontSize + 3),
+                  _horizontalInfoRow(Icons.warehouse, 'Tipo Bodega:', articulo.tipoBodega, baseFontSize + 3),
                   const SizedBox(height: 8),
-                  
+                  // Etiquetas si existen
                   if (articulo.etiquetas != null)
                     Expanded(
                       child: Column(
@@ -243,144 +126,20 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
+  /// Construye la tarjeta en formato vertical (modo estándar o móvil)
   Widget _buildVerticalCard(BuildContext context, bool isMobile) {
-    double baseFontSize;
-    if (isZoomMode) {
-      baseFontSize = isMobile ? 18 : 35;
-    } else {
-      baseFontSize = isMobile ? 10 : 16;
-    }
+    final baseFontSize = isZoomMode
+        ? (isMobile ? 18.0 : 35.0)
+        : (isMobile ? 10.0 : 16.0);
 
-    return Container( // ⭐ QUITADO: GestureDetector duplicado
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Container(
+      decoration: _buildCardDecoration(),
       child: Column(
         children: [
           Expanded(
-            flex: isZoomMode ? 5 : 4,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.network(
-                    _buildImageUrl(articulo.imagenPath ?? ''),
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (_, __, ___) => _buildPlaceholder(),
-                    loadingBuilder: (_, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
-                      );
-                    },
-                  ),
-                ),
-
-                if (isSelected)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    ),
-                  ),
-
-                Positioned(
-                  top: isZoomMode ? 12 : 9,
-                  left: isZoomMode ? 12 : 9,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isZoomMode ? 10 : 8,
-                      vertical: isZoomMode ? 6 : 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getColorPorTipo(articulo.tipoArticulo),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getTipoDisplay(articulo.tipoArticulo),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isZoomMode ? baseFontSize : baseFontSize - 2,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // BOTONES SOLO EN MODO ZOOM
-                if (isZoomMode)
-                  Positioned(
-                    top: isZoomMode ? 12 : 8,
-                    right: isZoomMode ? 12 : 8,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // BOTÓN EDITAR
-                            GestureDetector(
-                              onTap: () {
-                                print('✏️ Botón EDITAR presionado - ID: ${articulo.articuloId}');
-                                if (onEdit != null) {
-                                  onEdit();
-                                } else {
-                                  print('❌ ERROR: onEdit es null');
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  Icons.edit, 
-                                  color: Colors.blueAccent,
-                                  size: isZoomMode ? 30 : 20,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            // BOTÓN ELIMINAR
-                            GestureDetector(
-                              onTap: () {
-                                print('🗑️ Botón ELIMINAR presionado - ID: ${articulo.articuloId}');
-                                _mostrarDialogoEliminacion(context);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  Icons.delete, 
-                                  color: Colors.red,
-                                  size: isZoomMode ? 24 : 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            flex: isZoomMode ? 6 : 4,
+            child: _buildImageSection(context),
           ),
-
           Expanded(
             flex: isZoomMode ? 4 : 6,
             child: Padding(
@@ -432,45 +191,117 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  // ... (los demás métodos se mantienen igual: _mostrarDialogoEliminacion, _buildPlaceholder, etc.)
-  void _mostrarDialogoEliminacion(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1a2235),
-          title: const Text(
-            'Confirmar Eliminación',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            '¿Estás seguro de que deseas eliminar "${articulo.categoriaNombre} - ${articulo.marcaNombre} - ${articulo.referencia}"?',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                print('❌ Eliminación cancelada');
-              },
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                print('✅ Confirmada eliminación de: ${articulo.articuloId}');
-                if (onDelete != null) {
-                  onDelete();
-                }
-              },
-              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
+  /// Estilo decorativo del contenedor de la tarjeta
+  BoxDecoration _buildCardDecoration() {
+    return BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.3),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 
+  /// Construye la sección de imagen del artículo
+  Widget _buildImageSection(BuildContext context, {bool horizontal = false}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Imagen del artículo
+        ClipRRect(
+          borderRadius: horizontal
+              ? const BorderRadius.horizontal(left: Radius.circular(16))
+              : const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Image.network(
+            _buildImageUrl(articulo.imagenPath ?? ''),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildPlaceholder(),
+            loadingBuilder: (_, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(child: CircularProgressIndicator(color: Color(0xFFf59e0b)));
+            },
+          ),
+        ),
+
+        // Sombra oscura si está seleccionado o en zoom
+        if (isZoomMode || isSelected)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: horizontal
+                  ? const BorderRadius.horizontal(left: Radius.circular(16))
+                  : const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+          ),
+
+        // Tipo de artículo en esquina superior izquierda
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _getColorPorTipo(articulo.tipoArticulo),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _getTipoDisplay(articulo.tipoArticulo),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        // Botones de acción (editar/eliminar)
+        if (isZoomMode)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _buildZoomButtons(context),
+          ),
+      ],
+    );
+  }
+
+  /// Construye los botones de edición y eliminación (solo modo zoom)
+  Widget _buildZoomButtons(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.blueAccent),
+              onPressed: onEdit,
+              iconSize: isZoomMode ? 30 : 20,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: onDelete,
+              iconSize: isZoomMode ? 24 : 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Imagen por defecto cuando no carga
   Widget _buildPlaceholder() {
     return Container(
       color: const Color(0xFF2a2f40),
@@ -480,6 +311,7 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
+  /// Construye la URL de la imagen según la ruta proporcionada
   String _buildImageUrl(String path) {
     if (path.isEmpty) return "";
     if (path.startsWith('http')) return path;
@@ -487,6 +319,7 @@ class ArticuloCard extends StatelessWidget {
     return '${AppConfig.imagesUrl}/$path';
   }
 
+  /// Devuelve color representativo del tipo de artículo
   Color _getColorPorTipo(String tipo) {
     switch (tipo) {
       case 'Activo Fijo':
@@ -500,6 +333,7 @@ class ArticuloCard extends StatelessWidget {
     }
   }
 
+  /// Devuelve texto mostrado para el tipo de artículo
   String _getTipoDisplay(String tipo) {
     switch (tipo) {
       case 'Activo Fijo':
@@ -513,6 +347,7 @@ class ArticuloCard extends StatelessWidget {
     }
   }
 
+  /// Construye chips de etiquetas
   List<Widget> _buildEtiquetasChips(String etiquetasStr, double fontSize) {
     final etiquetas = etiquetasStr
         .replaceAll('[', '')
@@ -538,6 +373,7 @@ class ArticuloCard extends StatelessWidget {
     }).toList();
   }
 
+  /// Fila con ícono + texto (formato compacto)
   Widget _infoRow(IconData icon, String text, double fontSize) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -557,6 +393,7 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
+  /// Fila con ícono, etiqueta y valor (solo para tarjeta horizontal)
   Widget _horizontalInfoRow(IconData icon, String label, String value, double fontSize) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),

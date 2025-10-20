@@ -135,7 +135,9 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
     try {
       // ⭐ CREAR CATEGORÍA DIRECTAMENTE ⭐
-      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+
+      
+     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
       
       final nuevaCategoria = {
         'id': DateTime.now().millisecondsSinceEpoch,
