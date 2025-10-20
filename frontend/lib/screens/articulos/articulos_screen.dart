@@ -59,6 +59,15 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
   }
 
   Future<void> _eliminarArticulo(Articulo articulo) async {
+    print('🗑️ INICIANDO ELIMINACIÓN del artículo: ${articulo.articuloId}');
+    
+    // VERIFICAR QUE EL ARTÍCULO TIENE ID
+    if (articulo.articuloId == null) {
+      print('❌ ERROR: El artículo no tiene ID');
+      _mostrarError('No se puede eliminar el artículo: ID no disponible');
+      return;
+    }
+
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -70,32 +79,65 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () {
+              print('❌ Eliminación cancelada por el usuario');
+              Navigator.of(context).pop(false);
+            },
             child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () {
+              print('✅ Usuario confirmó eliminación');
+              Navigator.of(context).pop(true);
+            },
             child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
     );
 
-    if (confirmado == true) {
+    // VERIFICAR QUE CONFIRMADO NO SEA NULL Y QUE ARTICULO TENGA ID
+    if (confirmado == true && articulo.articuloId != null) {
+      print('🔄 EJECUTANDO ELIMINACIÓN en backend para ID: ${articulo.articuloId}');
       try {
-        final token = Provider.of<AuthProvider>(context, listen: false).token!;
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final token = authProvider.token;
+        
+        // VERIFICAR QUE HAY TOKEN
+        if (token == null) {
+          print('❌ ERROR: No hay token de autenticación');
+          _mostrarError('Error de autenticación. Por favor, inicie sesión nuevamente.');
+          return;
+        }
+
+        print('🔐 Token disponible, llamando a ArticuloService...');
         final resultado = await ArticuloService.eliminarArticulo(articulo.articuloId!, token);
+        
+        print('📡 Respuesta del backend: $resultado');
+        
+        // VERIFICAR LA RESPUESTA DEL BACKEND
         if (resultado['success'] == true) {
+          print('🎉 Artículo eliminado exitosamente');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(resultado['message']!), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text(resultado['message'] ?? 'Artículo eliminado exitosamente'), 
+              backgroundColor: Colors.green
+            ),
           );
-          _cargarArticulos();
+          _cargarArticulos(); // Recargar la lista
         } else {
-          _mostrarError(resultado['error']!);
+          final errorMsg = resultado['error'] ?? 'Error desconocido al eliminar el artículo';
+          print('❌ Error del backend: $errorMsg');
+          _mostrarError(errorMsg);
         }
       } catch (e) {
+        print('💥 Excepción al eliminar: $e');
         _mostrarError('Error al eliminar artículo: $e');
       }
+    } else {
+      print('❌ Eliminación cancelada o artículo sin ID');
+      if (confirmado != true) print('   - Razón: Usuario canceló');
+      if (articulo.articuloId == null) print('   - Razón: Artículo sin ID');
     }
   }
 
@@ -122,13 +164,17 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
 
   // Método para mostrar/ocultar el zoom
   void _toggleZoomArticulo(Articulo? articulo) {
+    print('🔍 _toggleZoomArticulo llamado con: ${articulo?.articuloId}');
+    
     setState(() {
       if (articulo == null) {
         _mostrarZoom = false;
         _articuloSeleccionadoZoom = null;
+        print('❌ Zoom cerrado - articulo es null');
       } else {
         _mostrarZoom = true;
         _articuloSeleccionadoZoom = articulo;
+        print('✅ Zoom abierto para artículo ID: ${articulo.articuloId}');
       }
     });
   }
@@ -156,7 +202,6 @@ Widget build(BuildContext context) {
   }
 
   return Scaffold(
-    // ⭐ OCULTAR FLOATING ACTION BUTTON EN MODO ZOOM ⭐
     floatingActionButton: (_mostrarZoom || widget.onCrearArticulo == null) 
         ? null 
         : FloatingActionButton(
@@ -241,10 +286,9 @@ Widget build(BuildContext context) {
           height: double.infinity,
           child: Stack(
             children: [
-              // Tarjeta en el centro
               Center(
                 child: GestureDetector(
-                  onTap: () {}, // Evita que se cierre al tocar la tarjeta
+                  onTap: () {},
                   child: Container(
                     width: isMobile 
                         ? MediaQuery.of(context).size.width * 0.95
@@ -257,14 +301,24 @@ Widget build(BuildContext context) {
                       child: ArticuloCard(
                         articulo: _articuloSeleccionadoZoom!,
                         isSelected: true,
-                        isZoomMode: true, // ← TRUE para modo zoom
+                        isZoomMode: true,
                         onEdit: () {
-                          _toggleZoomArticulo(null);
-                          widget.onEditarArticulo?.call(_articuloSeleccionadoZoom!);
+                          print('✏️ Editando artículo desde zoom');
+                          
+                          // EJECUTAR LA EDICIÓN PRIMERO, LUEGO CERRAR EL ZOOM
+                          if (_articuloSeleccionadoZoom != null && widget.onEditarArticulo != null) {
+                            widget.onEditarArticulo!(_articuloSeleccionadoZoom!);
+                            _toggleZoomArticulo(null);
+                          }
                         },
                         onDelete: () {
-                          _toggleZoomArticulo(null);
-                          _eliminarArticulo(_articuloSeleccionadoZoom!);
+                          print('🗑️ Eliminando artículo desde zoom');
+                          
+                          // EJECUTAR LA ELIMINACIÓN PRIMERO, LUEGO CERRAR EL ZOOM
+                          if (_articuloSeleccionadoZoom != null) {
+                            _eliminarArticulo(_articuloSeleccionadoZoom!);
+                            _toggleZoomArticulo(null);
+                          }
                         },
                         onSelect: () => _toggleZoomArticulo(null),
                       ),

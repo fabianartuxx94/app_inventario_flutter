@@ -164,46 +164,68 @@ class ArticuloService {
 
   // ELIMINAR ARTÍCULO
   static Future<Map<String, dynamic>> eliminarArticulo(int articuloId, String token) async {
-    try {
-      if (kDebugMode) {
-        print('🗑️ Eliminando artículo ID: $articuloId');
-      }
-      
-      final response = await http.delete(
-        Uri.parse('$baseUrl/articulos/$articuloId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+  try {
+    if (kDebugMode) {
+      print('🗑️ Eliminando artículo ID: $articuloId');
+      print('🌐 URL: $baseUrl/articulos/$articuloId');
+    }
+    
+    // ⭐⭐ TU BACKEND USA DELETE, PERO LA RUTA PODRÍA SER POST
+    // Probemos primero con DELETE directo
+    final response = await http.delete(
+      Uri.parse('$baseUrl/articulos/$articuloId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      final data = jsonDecode(response.body);
-      if (kDebugMode) {
-        print('📊 Respuesta eliminación - Status: ${response.statusCode}');
-      }
+    if (kDebugMode) {
+      print('📊 Respuesta eliminación - Status: ${response.statusCode}');
+      print('📄 Body de respuesta: ${response.body}');
+    }
 
-      if (response.statusCode == 200) {
+    // Manejar respuesta
+    if (response.statusCode == 200) {
+      try {
+        final data = jsonDecode(response.body);
         final responseBody = data['body'] ?? data;
         return {
           'success': true,
           'message': responseBody['message'] ?? 'Artículo eliminado correctamente',
         };
-      } else {
+      } catch (e) {
+        // Si no se puede decodificar, asumir éxito
         return {
-          'success': false,
-          'error': data['error'] ?? 'Error al eliminar artículo (${response.statusCode})',
+          'success': true,
+          'message': 'Artículo eliminado correctamente',
         };
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error eliminando artículo: $e');
+    } else {
+      // Intentar obtener mensaje de error
+      try {
+        final data = jsonDecode(response.body);
+        return {
+          'success': false,
+          'error': data['error'] ?? data['message'] ?? 'Error del servidor: ${response.statusCode}',
+        };
+      } catch (e) {
+        return {
+          'success': false,
+          'error': 'Error del servidor: ${response.statusCode}',
+        };
       }
-      return {
-        'success': false,
-        'error': 'Error de conexión: $e',
-      };
     }
+  } catch (e) {
+    if (kDebugMode) {
+      print('❌ Error eliminando artículo: $e');
+    }
+    return {
+      'success': false,
+      'error': 'Error de conexión: $e',
+    };
   }
+}
 
   // OBTENER ARTÍCULO POR ID
   static Future<Articulo?> obtenerArticuloPorId(int articuloId, String token) async {

@@ -24,26 +24,25 @@ class ArticuloCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
-    final isDesktopZoom = isZoomMode && !isMobile; // ← Nuevo: zoom en escritorio
+    final isDesktopZoom = isZoomMode && !isMobile;
 
-    return GestureDetector(
+    return GestureDetector( // ⭐ CAMBIADO: Solo responde a clicks/taps
       onTap: onSelect,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         transform: Matrix4.identity()..scale(isSelected ? 1.1 : 1.0),
         child: isDesktopZoom 
-            ? _buildHorizontalCard(context, isMobile) // ← Formato horizontal en escritorio zoom
-            : _buildVerticalCard(context, isMobile),   // ← Formato vertical normal
+            ? _buildHorizontalCard(context, isMobile)
+            : _buildVerticalCard(context, isMobile),
       ),
     );
   }
 
-  // ⭐ NUEVO MÉTODO: Tarjeta horizontal para escritorio en zoom ⭐
   Widget _buildHorizontalCard(BuildContext context, bool isMobile) {
-    double baseFontSize = 16; // Fuente fija grande para escritorio zoom
+    double baseFontSize = 16;
 
-    return Container(
+    return Container( // ⭐ QUITADO: GestureDetector duplicado
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
@@ -59,15 +58,13 @@ class ArticuloCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row( // ← USAR ROW EN LUGAR DE COLUMN
+      child: Row(
         children: [
-          // ⭐ IMAGEN A LA IZQUIERDA ⭐
           Expanded(
-            flex: 6, // 70% del espacio para la imagen
+            flex: 6,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Imagen principal
                 ClipRRect(
                   borderRadius: const BorderRadius.horizontal(
                     left: Radius.circular(16),
@@ -75,8 +72,6 @@ class ArticuloCard extends StatelessWidget {
                   child: Image.network(
                     _buildImageUrl(articulo.imagenPath ?? ''),
                     fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
                     errorBuilder: (_, __, ___) => _buildPlaceholder(),
                     loadingBuilder: (_, child, loadingProgress) {
                       if (loadingProgress == null) return child;
@@ -87,7 +82,6 @@ class ArticuloCard extends StatelessWidget {
                   ),
                 ),
 
-                // Overlay oscuro
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.3),
@@ -97,7 +91,6 @@ class ArticuloCard extends StatelessWidget {
                   ),
                 ),
 
-                // Chip del tipo
                 Positioned(
                   top: 16,
                   left: 16,
@@ -118,53 +111,73 @@ class ArticuloCard extends StatelessWidget {
                   ),
                 ),
 
-                // Botones de editar y eliminar
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.edit, 
-                            color: Colors.blueAccent,
-                            size: 24,
-                          ),
-                          onPressed: onEdit,
+                // BOTONES SOLO EN MODO ZOOM
+                if (isZoomMode)
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete, 
-                            color: Colors.red,
-                            size: 24,
-                          ),
-                          onPressed: onDelete,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // BOTÓN EDITAR
+                            GestureDetector(
+                              onTap: () {
+                                print('✏️ Botón EDITAR presionado - ID: ${articulo.articuloId}');
+                                if (onEdit != null) {
+                                  onEdit();
+                                } else {
+                                  print('❌ ERROR: onEdit es null');
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.edit, 
+                                  color: Colors.blueAccent,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            // BOTÓN ELIMINAR
+                            GestureDetector(
+                              onTap: () {
+                                print('🗑️ Botón ELIMINAR presionado - ID: ${articulo.articuloId}');
+                                _mostrarDialogoEliminacion(context);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.delete, 
+                                  color: Colors.red,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
 
-          // ⭐ INFORMACIÓN A LA DERECHA ⭐
           Expanded(
-            flex: 4, // 40% del espacio para la información
+            flex: 4,
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Categoría
                   Text(
                     articulo.categoriaNombre,
                     maxLines: 1,
@@ -176,7 +189,6 @@ class ArticuloCard extends StatelessWidget {
                     ),
                   ),
                   
-                  // Marca y referencia
                   Text(
                     '${articulo.marcaNombre} - ${articulo.referencia}',
                     maxLines: 1,
@@ -189,7 +201,6 @@ class ArticuloCard extends StatelessWidget {
                   
                   const SizedBox(height: 8),
                   
-                  // Información detallada
                   _horizontalInfoRow(Icons.location_on, 'Ubicación:', articulo.ubicacionBodega, baseFontSize+3),
                   _horizontalInfoRow(Icons.qr_code, 'Referencia:', articulo.referencia, baseFontSize+3),
                   _horizontalInfoRow(Icons.category, 'Tipo Artículo:', articulo.tipoArticulo, baseFontSize+3),
@@ -197,7 +208,6 @@ class ArticuloCard extends StatelessWidget {
                   
                   const SizedBox(height: 8),
                   
-                  // Etiquetas
                   if (articulo.etiquetas != null)
                     Expanded(
                       child: Column(
@@ -233,45 +243,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  // ⭐ NUEVO MÉTODO: Fila de información para formato horizontal ⭐
-  Widget _horizontalInfoRow(IconData icon, String label, String value, double fontSize) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: fontSize - 2, color: const Color(0xFF94a3b8)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: const Color(0xFFcbd5e1),
-                    fontSize: fontSize - 1,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: const Color(0xFF94a3b8),
-                    fontSize: fontSize - 1,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ⭐ MÉTODO EXISTENTE: Tarjeta vertical (original) ⭐
   Widget _buildVerticalCard(BuildContext context, bool isMobile) {
     double baseFontSize;
     if (isZoomMode) {
@@ -280,7 +251,7 @@ class ArticuloCard extends StatelessWidget {
       baseFontSize = isMobile ? 10 : 16;
     }
 
-    return Container(
+    return Container( // ⭐ QUITADO: GestureDetector duplicado
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1a2235), Color(0xFF1e293b)],
@@ -298,13 +269,11 @@ class ArticuloCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Imagen con botones superpuestos
           Expanded(
             flex: isZoomMode ? 5 : 4,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Imagen principal
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Image.network(
@@ -322,7 +291,6 @@ class ArticuloCard extends StatelessWidget {
                   ),
                 ),
 
-                // Overlay oscuro cuando está seleccionado (para modo zoom)
                 if (isSelected)
                   Container(
                     decoration: BoxDecoration(
@@ -331,7 +299,6 @@ class ArticuloCard extends StatelessWidget {
                     ),
                   ),
 
-                // Chip del tipo en la parte superior izquierda
                 Positioned(
                   top: isZoomMode ? 12 : 9,
                   left: isZoomMode ? 12 : 9,
@@ -355,37 +322,58 @@ class ArticuloCard extends StatelessWidget {
                   ),
                 ),
 
-                // Botones de editar y eliminar ENCIMA DE LA IMAGEN (solo en modo zoom)
-                if (isSelected)
+                // BOTONES SOLO EN MODO ZOOM
+                if (isZoomMode)
                   Positioned(
                     top: isZoomMode ? 12 : 8,
                     right: isZoomMode ? 12 : 8,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.edit, 
-                              color: Colors.blueAccent,
-                              size: isZoomMode ? 30 : 20,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // BOTÓN EDITAR
+                            GestureDetector(
+                              onTap: () {
+                                print('✏️ Botón EDITAR presionado - ID: ${articulo.articuloId}');
+                                if (onEdit != null) {
+                                  onEdit();
+                                } else {
+                                  print('❌ ERROR: onEdit es null');
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.edit, 
+                                  color: Colors.blueAccent,
+                                  size: isZoomMode ? 30 : 20,
+                                ),
+                              ),
                             ),
-                            onPressed: onEdit,
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: Icon(
-                              Icons.delete, 
-                              color: Colors.red,
-                              size: isZoomMode ? 24 : 20,
+                            const SizedBox(width: 4),
+                            // BOTÓN ELIMINAR
+                            GestureDetector(
+                              onTap: () {
+                                print('🗑️ Botón ELIMINAR presionado - ID: ${articulo.articuloId}');
+                                _mostrarDialogoEliminacion(context);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.delete, 
+                                  color: Colors.red,
+                                  size: isZoomMode ? 24 : 20,
+                                ),
+                              ),
                             ),
-                            onPressed: onDelete,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -393,7 +381,6 @@ class ArticuloCard extends StatelessWidget {
             ),
           ),
 
-          // Información del artículo
           Expanded(
             flex: isZoomMode ? 4 : 6,
             child: Padding(
@@ -445,7 +432,45 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  // ... (los demás métodos _buildPlaceholder, _buildImageUrl, _getColorPorTipo, etc. se mantienen igual)
+  // ... (los demás métodos se mantienen igual: _mostrarDialogoEliminacion, _buildPlaceholder, etc.)
+  void _mostrarDialogoEliminacion(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1a2235),
+          title: const Text(
+            'Confirmar Eliminación',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            '¿Estás seguro de que deseas eliminar "${articulo.categoriaNombre} - ${articulo.marcaNombre} - ${articulo.referencia}"?',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                print('❌ Eliminación cancelada');
+              },
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                print('✅ Confirmada eliminación de: ${articulo.articuloId}');
+                if (onDelete != null) {
+                  onDelete();
+                }
+              },
+              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildPlaceholder() {
     return Container(
       color: const Color(0xFF2a2f40),
@@ -525,6 +550,43 @@ class ArticuloCard extends StatelessWidget {
               text,
               style: TextStyle(color: const Color(0xFF94a3b8), fontSize: fontSize),
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _horizontalInfoRow(IconData icon, String label, String value, double fontSize) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: fontSize - 2, color: const Color(0xFF94a3b8)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: const Color(0xFFcbd5e1),
+                    fontSize: fontSize - 1,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: const Color(0xFF94a3b8),
+                    fontSize: fontSize - 1,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],

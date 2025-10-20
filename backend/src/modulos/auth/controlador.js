@@ -38,7 +38,7 @@ module.exports = function (dbInyectada) {
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET || "suchance27", {
-      expiresIn: "2h",
+      expiresIn: "6h",
     });
 
     return {

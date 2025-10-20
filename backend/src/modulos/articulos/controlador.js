@@ -78,15 +78,23 @@ module.exports = function (dbInyectada) {
   }
 
   async function eliminar(articulo_id) {
-    try {
-      console.log("🗑️ ELIMINANDO ARTÍCULO ID:", articulo_id);
-      await db.query(`DELETE FROM ${TABLA_ARTICULOS} WHERE id = ${articulo_id}`);
-      return { message: "Artículo eliminado correctamente" };
-    } catch (error) {
-      console.error("❌ ERROR EN ELIMINAR ARTÍCULO:", error);
-      throw error;
+  try {
+    const id = parseInt(articulo_id, 10);
+
+    if (!id || isNaN(id)) {
+      throw new Error("ID de artículo inválido");
     }
+
+    console.log("🗑️ ELIMINANDO ARTÍCULO ID:", id);
+    
+    await db.consultaDirecta(`DELETE FROM ${TABLA_ARTICULOS} WHERE id = ?`, [id]);
+
+    return { message: "Artículo eliminado correctamente" };
+  } catch (error) {
+    console.error("❌ ERROR EN ELIMINAR ARTÍCULO:", error);
+    throw error;
   }
+}
 
   async function todos() {
     try {
