@@ -216,8 +216,16 @@ class _ImageUploaderState extends State<ImageUploader> {
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 _getImageUrl(_imageUrl!),
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
+                fit: BoxFit.cover,loadingBuilder: (context, child, loadingProgress) {
+  if (loadingProgress == null) return child;
+  return Container(
+    color: const Color(0xFF2d3748),
+    child: const Center(
+      child: Icon(Icons.image, size: 40, color: Colors.grey),
+    ),
+  );
+},
+                /*loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return Container(
                     color: const Color(0xFF2d3748),
@@ -230,7 +238,7 @@ class _ImageUploaderState extends State<ImageUploader> {
                       ),
                     ),
                   );
-                },
+                },*/
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: const Color(0xFF2d3748),

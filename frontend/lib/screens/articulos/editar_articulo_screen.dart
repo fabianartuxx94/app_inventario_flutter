@@ -376,47 +376,81 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     );
   }
 
-  Widget _buildDropdown({
-    required String value,
-    required List<Map<String, String>> items,
-    required String label,
-    required Function(String?) onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFFaca9bb),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: value,
-          dropdownColor: const Color(0xFF2d3748),
-          style: const TextStyle(color: Colors.white),
-          onChanged: onChanged,
-          items: items.map((item) {
-            return DropdownMenuItem<String>(
-              value: item['value'],
-              child: Text(item['label']!),
-            );
-          }).toList(),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFF2a2f40),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF474554)),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-          validator: (value) => value == null ? 'Campo requerido' : null,
-        ),
-      ],
-    );
+Widget _buildDropdown({
+  required String value,
+  required List<Map<String, String>> items,
+  required String label,
+  required Function(String?) onChanged,
+}) {
+  // ✅ VERIFICAR que el valor actual existe en la lista
+  final validItems = items.where((item) => item['value'] != null).toList();
+  final validValues = validItems.map((item) => item['value']!).toList();
+  
+  String currentValue = value;
+  
+  // Si el valor actual no está en la lista, usar el primero disponible
+  if (!validValues.contains(value)) {
+    currentValue = validValues.isNotEmpty ? validValues.first : '';
+    print('⚠️ Valor "$value" no encontrado en la lista. Usando: "$currentValue"');
   }
+
+  // Verificar duplicados
+  final duplicates = _findDuplicateValues(validValues);
+  if (duplicates.isNotEmpty) {
+    print('❌ VALORES DUPLICADOS EN DROPDOWN: $duplicates');
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFaca9bb),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        value: currentValue, // ✅ Ahora siempre es un valor válido
+        dropdownColor: const Color(0xFF2d3748),
+        style: const TextStyle(color: Colors.white),
+        onChanged: onChanged,
+        items: validItems.map((item) {
+          return DropdownMenuItem<String>(
+            value: item['value']!,
+            child: Text(item['label']!),
+          );
+        }).toList(),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: const Color(0xFF2a2f40),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF474554)),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
+      ),
+    ],
+  );
+}
+
+// Método auxiliar para encontrar duplicados
+List<String> _findDuplicateValues(List<String> values) {
+  final duplicates = <String>[];
+  final seen = <String>{};
+  
+  for (final value in values) {
+    if (seen.contains(value)) {
+      duplicates.add(value);
+    } else {
+      seen.add(value);
+    }
+  }
+  
+  return duplicates;
+}
 }

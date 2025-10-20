@@ -7,9 +7,8 @@ import 'providers/auth_provider.dart';
 import 'utils/globals.dart';
 
 void main() {
-  // ⭐ SOLUCIÓN: Configuración para Flutter Web
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   runApp(
     MultiProvider(
       providers: [
@@ -29,8 +28,6 @@ class InventarioApp extends StatelessWidget {
       title: 'Inventario App',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      
-      // ⭐ SOLUCIÓN: Configuración para errores de Flutter Web
       builder: (context, child) {
         return ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
@@ -39,27 +36,19 @@ class InventarioApp extends StatelessWidget {
           child: child!,
         );
       },
-      
       theme: ThemeData(
         fontFamily: 'Poppins',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromARGB(255, 9, 17, 136),
         ),
-        useMaterial3: true, // ⭐ Agregar esto
+        useMaterial3: true,
       ),
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           return FutureBuilder(
             future: authProvider.loadStoredToken(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              
+              // Eliminamos la pantalla de carga
               if (authProvider.isTokenValid) {
                 return InactivityListener(
                   child: const DashboardPage(),

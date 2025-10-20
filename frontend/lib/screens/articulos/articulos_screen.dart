@@ -246,7 +246,7 @@ class _ArticulosScreenState extends State<ArticulosScreen> {
           child: Center(
             child: GestureDetector(
               onTap: () {},
-              child: Container(
+              child: SizedBox(
                 width: isMobile
                     ? MediaQuery.of(context).size.width * 0.95
                     : MediaQuery.of(context).size.width * 0.6,

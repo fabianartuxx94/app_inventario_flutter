@@ -773,7 +773,7 @@ Future<void> _recargarMarcas() async {
                         print("✅ Marca seleccionada: ${marca['nombre']} (ID: $_marcaId)");
                       },
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

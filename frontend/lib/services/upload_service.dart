@@ -8,10 +8,10 @@ import 'package:mime/mime.dart';
 import '../config/config.dart';
 
 class UploadService {
-  // Cambiar de const a final (ya que no es constante en tiempo de compilación)
   static final String baseUrl = AppConfig.baseUrl;
+  static final String apiUrl = AppConfig.apiUrl;
 
-  // Subir imagen con token y datos del artículo
+  // Subir imagen con token y datos del artículo - CORREGIDO
   static Future<Map<String, dynamic>> uploadImage(
     File imageFile, 
     String token, {
@@ -41,6 +41,9 @@ class UploadService {
       if (kDebugMode) {
         print('   • Servidor: ${AppConfig.baseUrl}');
       }
+      if (kDebugMode) {
+        print('   • Endpoint: ${AppConfig.apiUrl}/uploads/image');
+      }
       
       // Verificar que el archivo existe
       if (!await imageFile.exists()) {
@@ -58,9 +61,10 @@ class UploadService {
         print('🔍 Mime type detectado: $mimeType');
       }
 
+      // ✅ URL CORREGIDA - Usar apiUrl en lugar de baseUrl
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/uploads/image'),
+        Uri.parse('$apiUrl/uploads/image'), // ← ¡CORREGIDO!
       );
 
       // Agregar headers con token
@@ -86,6 +90,9 @@ class UploadService {
 
       if (kDebugMode) {
         print('📦 Enviando solicitud al servidor...');
+      }
+      if (kDebugMode) {
+        print('   URL: ${request.url}');
       }
       if (kDebugMode) {
         print('   Campos enviados: ${request.fields}');
@@ -150,7 +157,7 @@ class UploadService {
       }
       
       final response = await http.get(
-        Uri.parse('$baseUrl/uploads/diagnostic'),
+        Uri.parse('$apiUrl/uploads/diagnostic'), // ← CORREGIDO
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -178,37 +185,38 @@ class UploadService {
 
   // URL completa para mostrar imágenes - MEJORADA
   static String getImageUrl(String imagePath) {
-  if (imagePath.startsWith('http')) return imagePath;
-  
-  if (kDebugMode) {
-    print('🔍 CONSTRUYENDO URL PARA: "$imagePath"');
-  }
-  
-  // CASO 1: Si la ruta YA es correcta (/uploads/images/articulos/...)
-  if (imagePath.startsWith('/uploads/')) {
-    final url = '${AppConfig.baseUrl}$imagePath';
+    if (imagePath.startsWith('http')) return imagePath;
+    
     if (kDebugMode) {
-      print('   🎯 URL desde ruta uploads: $url');
+      print('🔍 CONSTRUYENDO URL PARA: "$imagePath"');
+    }
+    
+    // CASO 1: Si la ruta YA es correcta (/uploads/images/articulos/...)
+    if (imagePath.startsWith('/uploads/')) {
+      final url = '${AppConfig.baseUrl}$imagePath';
+      if (kDebugMode) {
+        print('   🎯 URL desde ruta uploads: $url');
+      }
+      return url;
+    }
+    
+    // CASO 2: Si es solo el nombre del archivo
+    if (!imagePath.contains('/')) {
+      final url = '${AppConfig.baseUrl}/uploads/images/articulos/$imagePath';
+      if (kDebugMode) {
+        print('   🎯 URL desde nombre archivo: $url');
+      }
+      return url;
+    }
+    
+    // CASO 3: Para cualquier otro caso
+    final url = '${AppConfig.baseUrl}/$imagePath';
+    if (kDebugMode) {
+      print('   🎯 URL desde ruta relativa: $url');
     }
     return url;
   }
-  
-  // CASO 2: Si es solo el nombre del archivo
-  if (!imagePath.contains('/')) {
-    final url = '${AppConfig. baseUrl}/images/articulos/$imagePath';
-    if (kDebugMode) {
-      print('   🎯 URL desde nombre archivo: $url');
-    }
-    return url;
-  }
-  
-  // CASO 3: Para cualquier otro caso
-  final url = '${AppConfig.baseUrl}/$imagePath';
-  if (kDebugMode) {
-    print('   🎯 URL desde ruta relativa: $url');
-  }
-  return url;
-}
+
   // Verificar si una imagen existe en el servidor
   static Future<bool> verifyImageExists(String imageUrl, String token) async {
     final client = http.Client();
@@ -220,7 +228,7 @@ class UploadService {
       
       final response = await client
           .get(Uri.parse(url))
-          .timeout(Duration(seconds: 5));
+          .timeout(Duration(seconds: 15));
       
       final exists = response.statusCode == 200;
       if (kDebugMode) {
@@ -278,6 +286,79 @@ class UploadService {
       };
     } finally {
       client.close();
+    }
+  }
+
+  // 📊 DIAGNÓSTICO COMPLETO
+  static Future<Map<String, dynamic>> fullDiagnostic(String token) async {
+    try {
+      if (kDebugMode) {
+        print('🔍 INICIANDO DIAGNÓSTICO COMPLETO');
+      }
+      
+      // 1. Probar conexión básica
+      final connectionTest = await testConnection();
+      if (!connectionTest['success']) {
+        return {
+          'success': false,
+          'error': 'No hay conexión al servidor',
+          'details': connectionTest
+        };
+      }
+
+      // 2. Probar ruta de diagnóstico estático
+      final staticResponse = await http.get(
+        Uri.parse('${AppConfig.baseUrl}/diagnostic/static-files'),
+      );
+      
+      final staticData = staticResponse.statusCode == 200 
+          ? jsonDecode(staticResponse.body)
+          : {'error': 'Status ${staticResponse.statusCode}'};
+
+      // 3. Probar API de uploads
+      final uploadsResponse = await http.get(
+        Uri.parse('${AppConfig.apiUrl}/uploads/diagnostic'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final uploadsData = uploadsResponse.statusCode == 200 
+          ? jsonDecode(uploadsResponse.body)
+          : {'error': 'Status ${uploadsResponse.statusCode}'};
+
+      return {
+        'success': true,
+        'connection': connectionTest,
+        'staticFiles': staticData,
+        'uploadsAPI': uploadsData,
+        'config': {
+          'baseUrl': AppConfig.baseUrl,
+          'apiUrl': AppConfig.apiUrl,
+          'imagesUrl': AppConfig.imagesUrl,
+        }
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Error en diagnóstico: $e'
+      };
+    }
+  }
+
+  // 🧪 TEST DE URLs
+  static void testUrls() {
+    print('🔗 TEST DE CONSTRUCCIÓN DE URLs:');
+    print('Base URL: ${AppConfig.baseUrl}');
+    print('API URL: ${AppConfig.apiUrl}');
+    print('Upload endpoint: ${AppConfig.apiUrl}/uploads/image');
+    
+    final testCases = [
+      'componentes_internos_kingston_fuente_de_poder_atx.jpg',
+      '/uploads/images/articulos/test.jpg',
+      'images/articulos/test.jpg'
+    ];
+    
+    for (final testCase in testCases) {
+      print('   "$testCase" → ${getImageUrl(testCase)}');
     }
   }
 }

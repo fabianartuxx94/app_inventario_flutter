@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-
+const { verificarToken, permitirRoles } = require('../auth/middleware');// Importa tu middleware
 const router = express.Router();
 
 // 📁 CONFIGURACIÓN CORREGIDA - DIRECTORIO DESTINO
@@ -18,7 +18,7 @@ const getUploadsPath = () => {
   return targetPath;
 };
 
-// Función para limpiar nombres de archivo (mantén la que tienes)
+// Función para limpiar nombres de archivo
 const formatFileName = (text) => {
   if (!text || text === 'null' || text === 'undefined') return '';
   return text
@@ -117,7 +117,7 @@ const upload = multer({
 });
 
 // ✅ RUTA PRINCIPAL CORREGIDA
-router.post("/image", upload.single("image"), (req, res) => {
+router.post("/image", verificarToken, upload.single("image"), (req, res) => {
   try {
     if (!req.file) {
       console.log("❌ No se recibió archivo");
@@ -156,41 +156,6 @@ router.post("/image", upload.single("image"), (req, res) => {
       success: false,
       error: "Error al subir imagen: " + error.message,
     });
-  }
-});
-
-// ✅ DIAGNÓSTICO CORREGIDO
-router.get("/diagnostic", (req, res) => {
-  try {
-    const articulosPath = getUploadsPath();
-    
-    console.log("🔍 DIAGNÓSTICO - Ruta verificada:", articulosPath);
-    
-    const info = {
-      ruta_absoluta: articulosPath,
-      existe_directorio: fs.existsSync(articulosPath),
-      archivos: []
-    };
-    
-    if (info.existe_directorio) {
-      const files = fs.readdirSync(articulosPath);
-      info.archivos = files.map(file => {
-        const filePath = path.join(articulosPath, file);
-        const stats = fs.statSync(filePath);
-        return {
-          nombre: file,
-          tamaño: stats.size,
-          fecha: stats.mtime
-        };
-      });
-      info.total_archivos = files.length;
-    }
-    
-    console.log("📊 RESULTADO DIAGNÓSTICO:", info);
-    res.json(info);
-  } catch (error) {
-    console.error("❌ ERROR EN DIAGNÓSTICO:", error);
-    res.status(500).json({ error: error.message });
   }
 });
 

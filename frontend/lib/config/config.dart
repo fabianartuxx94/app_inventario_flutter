@@ -1,4 +1,3 @@
-// lib/config/config.dart
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
@@ -6,10 +5,9 @@ class AppConfig {
   static const int serverPort = 5000;
   static const String baseUrl = 'http://$serverIp:$serverPort';
   
-  // Cambiar getters por constantes
   static const String apiUrl = '$baseUrl/api';
   static const String imagesUrl = '$baseUrl/uploads/images/articulos';
-  // Método para mostrar configuración actual
+  
   static void printConfig() {
     if (kDebugMode) {
       print('⚙️ CONFIGURACIÓN ACTUAL:');
@@ -22,6 +20,9 @@ class AppConfig {
     }
     if (kDebugMode) {
       print('   • API: $apiUrl');
+    }
+    if (kDebugMode) {
+      print('   • Images: $imagesUrl');
     }
   }
 }
