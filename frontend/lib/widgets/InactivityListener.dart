@@ -12,28 +12,16 @@ class InactivityListener extends StatefulWidget {
 }
 
 class _InactivityListenerState extends State<InactivityListener> with WidgetsBindingObserver {
-  late FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _focusNode = FocusNode();
-
-    // Solicita foco al teclado
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
-      }
-    });
-
-    _resetInactivityTimer();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -49,35 +37,17 @@ class _InactivityListenerState extends State<InactivityListener> with WidgetsBin
     }
   }
 
-  void _handlePointerEvent(PointerEvent event) {
-    _resetInactivityTimer();
-  }
-
-  void _handleGesture() {
-    _resetInactivityTimer();
-  }
-
-  void _handleKeyEvent(KeyEvent event) {
-    _resetInactivityTimer();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: _handlePointerEvent,
-      onPointerMove: _handlePointerEvent,
-      onPointerUp: _handlePointerEvent,
-      onPointerCancel: _handlePointerEvent,
+      onPointerDown: (_) => _resetInactivityTimer(),
+      onPointerMove: (_) => _resetInactivityTimer(),
+      onPointerUp: (_) => _resetInactivityTimer(),
       child: GestureDetector(
-  behavior: HitTestBehavior.translucent,
-  onTap: _handleGesture,
-  onPanUpdate: (_) => _handleGesture(),
-  child: KeyboardListener(
-    focusNode: _focusNode,
-    onKeyEvent: _handleKeyEvent,
-    child: widget.child,
-  ),
-)
+        behavior: HitTestBehavior.opaque,
+        onTap: _resetInactivityTimer,
+        child: widget.child,
+      ),
     );
   }
 }

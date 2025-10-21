@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:frontend/config/config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-// 👈 Añade esta importación
+import 'dart:typed_data';
 
 class ImageUploader extends StatefulWidget {
-  final Function(File)? onImageSelected; // Solo notifica la selección
+  final Function(dynamic)? onImageSelected;
   final String? currentImageUrl;
   final String? nombreArticulo;
   final String? marca;
@@ -19,7 +19,7 @@ class ImageUploader extends StatefulWidget {
     this.nombreArticulo,
     this.marca,
     this.referencia,
-  }); // 👈 Quita el parámetro token requerido
+  });
 
   @override
   State<ImageUploader> createState() => _ImageUploaderState();
@@ -28,6 +28,7 @@ class ImageUploader extends StatefulWidget {
 class _ImageUploaderState extends State<ImageUploader> {
   String? _imageUrl;
   File? _selectedImage;
+  Uint8List? _webImageBytes;
 
   @override
   void initState() {
@@ -46,92 +47,201 @@ class _ImageUploaderState extends State<ImageUploader> {
       );
 
       if (pickedFile != null) {
-        final imageFile = File(pickedFile.path);
-        
-        // SOLO NOTIFICAR SELECCIÓN - NO SUBIR
-        widget.onImageSelected?.call(imageFile);
-        setState(() {
-          _selectedImage = imageFile;
-        });
-
-        if (kDebugMode) {
-          print('📸 Imagen seleccionada: ${imageFile.path}');
+        if (kIsWeb) {
+          final bytes = await pickedFile.readAsBytes();
+          
+          if (!mounted) return;
+          
+          setState(() {
+            _webImageBytes = bytes;
+          });
+          
+          final webImageData = {
+            'bytes': bytes,
+            'name': pickedFile.name,
+            'type': 'web'
+          };
+          
+          widget.onImageSelected?.call(webImageData);
+          
+          if (kDebugMode) {
+            print('📸 Imagen web seleccionada: ${pickedFile.name}');
+          }
+        } else {
+          final imageFile = File(pickedFile.path);
+          
+          if (!mounted) return;
+          
+          setState(() {
+            _selectedImage = imageFile;
+          });
+          widget.onImageSelected?.call(imageFile);
+          
+          if (kDebugMode) {
+            print('📸 Imagen seleccionada: ${imageFile.path}');
+          }
         }
-        if (kDebugMode) {
-          print('⏳ Lista para subir al guardar el artículo');
-        }
         
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📸 Imagen seleccionada - Se subirá al guardar'),
-            backgroundColor: Color(0xFFf59e0b),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('📸 Imagen seleccionada - Se subirá al guardar'),
+              backgroundColor: Color(0xFFf59e0b),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (kDebugMode) {
         print('💥 Error seleccionando imagen: $e');
       }
-      // ignore: use_build_context_synchronously
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _removeImage() {
+    if (!mounted) return;
+    
+    setState(() {
+      _imageUrl = null;
+      _selectedImage = null;
+      _webImageBytes = null;
+    });
+    
+    widget.onImageSelected?.call(null);
+    
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
+        const SnackBar(
+          content: Text('🗑️ Imagen removida'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
         ),
       );
     }
   }
 
-  void _removeImage() {
-    setState(() {
-      _imageUrl = null;
-      _selectedImage = null;
-    });
-    
-    // Notificar que se removió la imagen
-    widget.onImageSelected?.call(File('')); // Enviar archivo vacío o null
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🗑️ Imagen removida'),
-        backgroundColor: Colors.orange,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
   void _removeSelectedImage() {
+    if (!mounted) return;
+    
     setState(() {
       _selectedImage = null;
+      _webImageBytes = null;
     });
     
-    // Notificar que se removió la imagen seleccionada
-    widget.onImageSelected?.call(File('')); // Enviar archivo vacío o null
+    widget.onImageSelected?.call(null);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🗑️ Imagen seleccionada removida'),
-        backgroundColor: Colors.orange,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🗑️ Imagen seleccionada removida'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
-  // Método auxiliar para obtener la URL completa de la imagen
   String _getImageUrl(String imagePath) {
-  if (imagePath.startsWith('http')) {
-    return imagePath;
-  } else {
-    return '${AppConfig.baseUrl}/$imagePath';
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    } else {
+      return '${AppConfig.baseUrl}/$imagePath';
+    }
   }
-}
+
+  bool get _isDesktop {
+    return !kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || 
+                       defaultTargetPlatform == TargetPlatform.macOS || 
+                       defaultTargetPlatform == TargetPlatform.linux);
+  }
+
+  bool get _isMobile {
+    return !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || 
+                       defaultTargetPlatform == TargetPlatform.iOS);
+  }
 
   Widget _buildImagePreview() {
-    // Mostrar imagen SELECCIONADA (temporal)
-    if (_selectedImage != null) {
+    if (kIsWeb && _webImageBytes != null) {
+      return Stack(
+        children: [
+          Container(
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFf59e0b), width: 3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(
+                _webImageBytes!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: const Color(0xFF2d3748),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, size: 40, color: Colors.red),
+                        SizedBox(height: 4),
+                        Text('Error', style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: _removeSelectedImage,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 4,
+            left: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFf59e0b),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'PENDIENTE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (!kIsWeb && _selectedImage != null) {
       return Stack(
         children: [
           Container(
@@ -177,7 +287,6 @@ class _ImageUploaderState extends State<ImageUploader> {
               ),
             ),
           ),
-          // Badge "Pendiente por subir"
           Positioned(
             bottom: 4,
             left: 4,
@@ -201,7 +310,6 @@ class _ImageUploaderState extends State<ImageUploader> {
       );
     }
 
-    // Mostrar imagen ACTUAL (ya subida)
     if (_imageUrl != null && _imageUrl!.isNotEmpty) {
       return Stack(
         children: [
@@ -216,29 +324,16 @@ class _ImageUploaderState extends State<ImageUploader> {
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
                 _getImageUrl(_imageUrl!),
-                fit: BoxFit.cover,loadingBuilder: (context, child, loadingProgress) {
-  if (loadingProgress == null) return child;
-  return Container(
-    color: const Color(0xFF2d3748),
-    child: const Center(
-      child: Icon(Icons.image, size: 40, color: Colors.grey),
-    ),
-  );
-},
-                /*loadingBuilder: (context, child, loadingProgress) {
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return Container(
                     color: const Color(0xFF2d3748),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
+                    child: const Center(
+                      child: Icon(Icons.image, size: 40, color: Colors.grey),
                     ),
                   );
-                },*/
+                },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     color: const Color(0xFF2d3748),
@@ -270,7 +365,6 @@ class _ImageUploaderState extends State<ImageUploader> {
               ),
             ),
           ),
-          // Badge "Actual"
           Positioned(
             bottom: 4,
             left: 4,
@@ -294,7 +388,6 @@ class _ImageUploaderState extends State<ImageUploader> {
       );
     }
 
-    // Sin imagen
     return Container(
       width: 150,
       height: 150,
@@ -335,7 +428,6 @@ class _ImageUploaderState extends State<ImageUploader> {
         ),
         const SizedBox(height: 8),
         
-        // Información sobre el comportamiento
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -364,7 +456,6 @@ class _ImageUploaderState extends State<ImageUploader> {
         Center(child: _buildImagePreview()),
         const SizedBox(height: 16),
 
-        // Botones de selección
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -383,24 +474,80 @@ class _ImageUploaderState extends State<ImageUploader> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt, size: 18),
-                label: const Text('Tomar Foto'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF474554),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            
+            if (!kIsWeb) const SizedBox(width: 12),
+            if (!kIsWeb)
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt, size: 18),
+                  label: Text(
+                    _isDesktop ? 'Usar Cámara' : 'Tomar Foto',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF474554),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
+
+        if (kIsWeb) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2a2f40),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF474554)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFFf59e0b), size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  'En web solo se permite seleccionar archivos',
+                  style: TextStyle(
+                    color: Color(0xFFaca9bb),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        if (_isDesktop) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2a2f40),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF10b981)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.computer, color: Color(0xFF10b981), size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  'En escritorio puedes usar la cámara si está disponible',
+                  style: TextStyle(
+                    color: Color(0xFFaca9bb),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

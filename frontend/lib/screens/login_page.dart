@@ -31,7 +31,6 @@ class _LoginPageState extends State<LoginPage> {
     _loadSavedCredentials();
   }
 
-  // Cargar credenciales guardadas
   Future<void> _loadSavedCredentials() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -55,7 +54,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Guardar credenciales
   Future<void> _saveCredentials() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -66,7 +64,6 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         await prefs.remove('password');
         await prefs.setBool('rememberMe', false);
-        // Mantenemos el username por conveniencia
         await prefs.setString('username', _usernameController.text.trim());
       }
     } catch (e) {
@@ -74,7 +71,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Limpiar credenciales
   Future<void> _clearCredentials() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -94,21 +90,32 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _loading = true);
 
     try {
-      final token = await ApiService.login(
+      final loginResult = await ApiService.loginWithUserData(
         _usernameController.text.trim(),
         _passwordController.text.trim(),
       );
 
       if (!mounted) return;
 
-      if (token != null) {
-        // Guardar credenciales si "Recordarme" está activado
+      if (loginResult != null && loginResult['token'] != null) {
         await _saveCredentials();
         
-        // ignore: use_build_context_synchronously
-        Provider.of<AuthProvider>(context, listen: false).login(token);
+        // ✅ CORREGIDO: Pasar todos los datos correctamente al AuthProvider
+        Provider.of<AuthProvider>(context, listen: false).login(
+          loginResult['token'],
+          {
+            'id': loginResult['id'],
+            'username': loginResult['username'], // ✅ Ahora sí está incluido
+            'nombre_completo': loginResult['nombre_completo'],
+            'rol': loginResult['rol'],
+          },
+        );
+
+        // ✅ DEBUG: Verificar que los datos se cargaron correctamente
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        authProvider.printDebugInfo();
+
         Navigator.pushReplacement(
-          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(builder: (_) => const DashboardPage()),
         );
@@ -136,8 +143,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Manejar la tecla Enter - MÉTODO CORREGIDO
-  // ignore: deprecated_member_use
   void _handleKeyPress(RawKeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.enter) {
       _login();
@@ -147,13 +152,11 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ignore: deprecated_member_use
       body: RawKeyboardListener(
         focusNode: FocusNode(),
         onKey: _handleKeyPress,
         child: GestureDetector(
           onTap: () {
-            // Ocultar teclado al tocar fuera de los campos
             FocusScope.of(context).unfocus();
           },
           child: Stack(
@@ -163,7 +166,6 @@ class _LoginPageState extends State<LoginPage> {
                 mobileBody: Center(child: _buildLoginForm(context, 350)),
                 desktopBody: Row(
                   children: [
-                    // Lado izquierdo: imagen y mensaje
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(40),
@@ -201,8 +203,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-
-                    // Lado derecho: formulario
                     Expanded(
                       child: Center(
                         child: _buildLoginForm(context, 400),
@@ -223,7 +223,6 @@ class _LoginPageState extends State<LoginPage> {
       width: formWidth,
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        // ignore: deprecated_member_use
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.white70),
@@ -262,7 +261,6 @@ class _LoginPageState extends State<LoginPage> {
                 return null;
               },
               onFieldSubmitted: (value) {
-                // Al presionar Enter en usuario, mover foco a contraseña
                 FocusScope.of(context).requestFocus(_passwordFocusNode);
               },
             ),
@@ -324,7 +322,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                
               ],
             ),
             const SizedBox(height: 20),

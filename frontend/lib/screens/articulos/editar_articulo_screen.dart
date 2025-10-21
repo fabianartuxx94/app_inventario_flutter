@@ -33,7 +33,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
 
   String _tipoBodega = 'Sistemas';
   String _tipoArticulo = 'Activo Fijo';
-  File? _nuevaImagenSeleccionada;
+  dynamic _nuevaImagenSeleccionada;
   bool _isLoading = false;
 
   @override
@@ -58,17 +58,17 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       String? nuevaImagenUrl;
 
       if (_nuevaImagenSeleccionada != null) {
-        final uploadResult = await UploadService.uploadImage(
-          _nuevaImagenSeleccionada!,
-          token,
-          nombreArticulo: widget.articulo.categoriaNombre,
-          marca: widget.articulo.marcaNombre,
-          referencia: _referenciaController.text.trim(),
-        );
-        if (uploadResult['success']) {
-          nuevaImagenUrl = uploadResult['imageUrl'];
-        }
-      }
+  final uploadResult = await UploadService.uploadImage(
+    _nuevaImagenSeleccionada, // ✅ Ahora envía los datos correctos
+    token,
+    nombreArticulo: widget.articulo.categoriaNombre,
+    marca: widget.articulo.marcaNombre,
+    referencia: _referenciaController.text.trim(),
+  );
+  if (uploadResult['success']) {
+    nuevaImagenUrl = uploadResult['imageUrl'];
+  }
+}
 
       final articuloActualizado = Articulo(
         articuloId: widget.articulo.articuloId,
@@ -176,9 +176,9 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                       const SizedBox(height: 20),
                                       
                                       ImageUploader(
-                                        onImageSelected: (imageFile) {
+                                        onImageSelected: (imageData) {
                                           setState(() {
-                                            _nuevaImagenSeleccionada = imageFile;
+                                            _nuevaImagenSeleccionada = imageData;
                                           });
                                         },
                                         currentImageUrl: _buildImageUrl(widget.articulo.imagenPath ?? ''),
@@ -254,7 +254,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                           ),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFFf59e0b),
+                                            backgroundColor: const Color.fromARGB(255, 43, 131, 8),
                                             foregroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
                                               borderRadius: BorderRadius.circular(12),

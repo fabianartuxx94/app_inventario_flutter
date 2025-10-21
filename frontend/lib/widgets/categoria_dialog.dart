@@ -9,11 +9,13 @@ import '../providers/auth_provider.dart';
 class CategoriaDialog extends StatefulWidget {
   final Map<String, dynamic>? categoria;
   final Function()? onGuardado;
+  final String? nombrePredefinido; // ← NUEVO PARÁMETRO
 
   const CategoriaDialog({
     super.key,
     this.categoria,
     this.onGuardado,
+    this.nombrePredefinido, // ← NUEVO PARÁMETRO
   });
 
   @override
@@ -34,6 +36,9 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
       _nombreController.text = widget.categoria!['nombre'] ?? '';
       _stockController.text = (widget.categoria!['stock_minimo'] ?? 0).toString();
       _etiquetasController.text = _formatEtiquetas(widget.categoria!['etiquetas']);
+    } else if (widget.nombrePredefinido != null) {
+      // ✅ PRELLENAR CON EL NOMBRE DE LA BÚSQUEDA
+      _nombreController.text = widget.nombrePredefinido!;
     }
   }
 

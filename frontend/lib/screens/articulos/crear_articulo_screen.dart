@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/marcas_service.dart';
+import 'package:frontend/widgets/categoria_dialog.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import '../../models/articulo_model.dart';
@@ -30,7 +31,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
   String _tipoBodega = 'Sistemas';
   String _tipoArticulo = 'Activo Fijo';
-  File? _imagenSeleccionada;
+  dynamic _imagenSeleccionada;
   bool _isLoading = false;
   bool _cargandoCategorias = true;
   bool _cargandoMarcas = true;
@@ -129,87 +130,181 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     }
   }
 
-  Future<void> _crearNuevaCategoria() async {
-    final nombreCategoria = _categoriaSearchController.text.trim();
-    if (nombreCategoria.isEmpty) return;
+Future<void> _crearNuevaCategoria() async {
+  final nombreCategoria = _categoriaSearchController.text.trim();
+  if (nombreCategoria.isEmpty) return;
 
-    try {
-      // ⭐ CREAR CATEGORÍA DIRECTAMENTE ⭐
+  // ✅ VERIFICAR si la categoría NO existe
+  final existeCategoria = _categorias.any((categoria) =>
+      categoria['nombre'].toString().toLowerCase() == nombreCategoria.toLowerCase());
 
-      
-     // final token = Provider.of<AuthProvider>(context, listen: false).token!;
-      
-      final nuevaCategoria = {
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': nombreCategoria,
-        'stock_minimo': 0,
-        'etiquetas': '[]'
-      };
+  if (existeCategoria) {
+    // Si ya existe, seleccionarla directamente
+    final categoriaExistente = _categorias.firstWhere((categoria) =>
+        categoria['nombre'].toString().toLowerCase() == nombreCategoria.toLowerCase());
+    
+    setState(() {
+      _categoriaId = categoriaExistente['id'] as int;
+      _categoriaSearchController.text = categoriaExistente['nombre'];
+      _mostrarCrearCategoria = false;
+      _mostrarListaCategorias = false;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Categoría "$nombreCategoria" seleccionada'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  } else {
+    // ✅ ABRIR CategoriaDialog CON EL NOMBRE PRELLENADO
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => CategoriaDialog(
+        categoria: null, 
+        nombrePredefinido: nombreCategoria, // ← PASA EL NOMBRE DE BÚSQUEDA
+        onGuardado: () {
+          // Recargar categorías después de guardar
+          _cargarDatosIniciales();
+        },
+      ),
+    );
 
+    // ✅ ACTUALIZAR INTERFAZ después de crear categoría
+    if (result != null && result['nombre'] != null) {
       setState(() {
-        _categorias.insert(0, nuevaCategoria);
-        _categoriaId = nuevaCategoria['id'] as int;
-        _categoriaSearchController.text = nombreCategoria;
+        _categoriaSearchController.text = result['nombre'];
         _mostrarCrearCategoria = false;
         _mostrarListaCategorias = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Categoría "$nombreCategoria" creada'),
-          backgroundColor: Colors.green,
-        ),
+      
+      // Recargar categorías para obtener la nueva con ID real
+      await _cargarDatosIniciales();
+      
+      // Intentar seleccionar la categoría recién creada
+      final nuevaCategoria = _categorias.firstWhere(
+        (c) => c['nombre'] == result['nombre'],
+        orElse: () => {},
       );
-    } catch (e) {
-      _mostrarError('Error al crear categoría: $e');
+      
+      if (nuevaCategoria.isNotEmpty) {
+        setState(() {
+          _categoriaId = nuevaCategoria['id'] as int;
+        });
+      }
     }
   }
+}
 
- Future<void> _crearNuevaMarca() async {
+// Alternativa con diálogo más atractivo
+Future<void> _crearNuevaMarca() async {
   final nombreMarca = _marcaSearchController.text.trim();
   if (nombreMarca.isEmpty) return;
 
-  setState(() => _isLoading = true);
+  // ✅ VERIFICAR si la marca NO existe
+  final existeMarca = _marcas.any((marca) =>
+      marca['nombre'].toString().toLowerCase() == nombreMarca.toLowerCase());
 
-  try {
-    final token = Provider.of<AuthProvider>(context, listen: false).token!;
+  if (existeMarca) {
+    // Si ya existe, seleccionarla directamente
+    final marcaExistente = _marcas.firstWhere((marca) =>
+        marca['nombre'].toString().toLowerCase() == nombreMarca.toLowerCase());
     
-    final marcaData = {
-      "nombre": nombreMarca,
-    };
+    final marcaId = marcaExistente['id'];
+    
+    setState(() {
+      _marcaId = marcaId is int ? marcaId : int.tryParse(marcaId.toString());
+      _marcaSearchController.text = marcaExistente['nombre'];
+      _mostrarCrearMarca = false;
+      _mostrarListaMarcas = false;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ Marca "$nombreMarca" seleccionada'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  } else {
+    // ✅ MOSTRAR DIÁLOGO DE CONFIRMACIÓN antes de crear
+    final confirmarCreacion = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Crear Nueva Marca'),
+        content: Text('¿Estás seguro de que quieres crear la marca "$nombreMarca"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFf59e0b),
+            ),
+            child: const Text('Crear Marca'),
+          ),
+        ],
+      ),
+    );
 
-    final resultado = await MarcasService.guardarMarca(marcaData, token);
-    
-    if (resultado['success'] == true) {
-      // ⭐ OPCIÓN 2: Recargar todas las marcas desde el servidor ⭐
-      await _recargarMarcas();
-      
-      // Buscar y seleccionar la nueva marca
-      final nuevaMarca = _marcas.firstWhere(
-        (marca) => marca['nombre'] == nombreMarca,
-        orElse: () => resultado['data'],
-      );
-      
+    // ✅ SI EL USUARIO CONFIRMA, CREAR LA MARCA
+    if (confirmarCreacion == true) {
+      setState(() => _isLoading = true);
+
+      try {
+        final token = Provider.of<AuthProvider>(context, listen: false).token!;
+        
+        final marcaData = {
+          "nombre": nombreMarca,
+        };
+
+        final resultado = await MarcasService.guardarMarca(marcaData, token);
+        
+        if (resultado['success'] == true) {
+          // ✅ RECARGAR MARCAS DESDE EL SERVIDOR
+          await _recargarMarcas();
+          
+          // Buscar y seleccionar la nueva marca
+          final nuevaMarca = _marcas.firstWhere(
+            (marca) => marca['nombre'] == nombreMarca,
+            orElse: () => resultado['data'] ?? {},
+          );
+          
+          if (nuevaMarca.isNotEmpty) {
+            final nuevaMarcaId = nuevaMarca['id'];
+            
+            setState(() {
+              _marcaId = nuevaMarcaId is int ? nuevaMarcaId : int.tryParse(nuevaMarcaId.toString());
+              _marcaSearchController.text = nuevaMarca['nombre'];
+              _mostrarCrearMarca = false;
+              _mostrarListaMarcas = false;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Marca "$nombreMarca" creada exitosamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            _mostrarError('Error: No se pudo encontrar la marca recién creada');
+          }
+        } else {
+          _mostrarError(resultado['error'] ?? 'Error al crear la marca');
+        }
+      } catch (e) {
+        _mostrarError('Error al crear marca: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    } else {
+      // Usuario canceló la creación
       setState(() {
-        _marcaId = nuevaMarca['id'] as int;
-        _marcaSearchController.text = nuevaMarca['nombre'];
         _mostrarCrearMarca = false;
         _mostrarListaMarcas = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Marca "$nombreMarca" creada exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      _mostrarError(resultado['error'] ?? 'Error al crear la marca');
     }
-  } catch (e) {
-    _mostrarError('Error al crear marca: $e');
-  } finally {
-    setState(() => _isLoading = false);
   }
 }
 
@@ -402,8 +497,8 @@ Future<void> _recargarMarcas() async {
                                       ],
                                       
                                       ImageUploader(
-                                        onImageSelected: (imageFile) {
-                                          setState(() => _imagenSeleccionada = imageFile);
+                                        onImageSelected: (imageData) {
+                                          setState(() => _imagenSeleccionada = imageData);
                                         },
                                         nombreArticulo: _getNombreCategoria(),
                                         marca: _getNombreMarca(),
@@ -514,7 +609,7 @@ Future<void> _recargarMarcas() async {
       children: [
         const Icon(
           Icons.add_circle_outline,
-          color: Color(0xFFf59e0b),
+          color: Color.fromARGB(255, 43, 131, 8),
           size: 28,
         ),
         const SizedBox(width: 12),
@@ -563,7 +658,7 @@ Future<void> _recargarMarcas() async {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFf59e0b),
+              backgroundColor: Color.fromARGB(255, 43, 131, 8),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
