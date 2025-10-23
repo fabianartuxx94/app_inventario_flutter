@@ -34,10 +34,9 @@ class UsuarioDialog {
   }
 }
 
-// Diálogo para crear usuario
+// ------------------------- Crear Usuario -------------------------
 class _CrearUsuarioDialog extends StatefulWidget {
   final VoidCallback onUsuarioCreado;
-
   const _CrearUsuarioDialog({required this.onUsuarioCreado});
 
   @override
@@ -52,10 +51,17 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
   final _confirmPasswordController = TextEditingController();
 
   String _selectedRol = 'usuario';
+  String? _selectedBodega;
   bool _activo = true;
   bool _loading = false;
 
   final List<String> _roles = ['administrador', 'tecnico', 'bodega', 'usuario'];
+  // Valores corregidos según el ENUM de la base de datos
+  final List<String> _bodegas = [
+    'Bodega Principal',
+    'Bodega Garzón', 
+    'Bodega Pitalito' // Corregido el nombre
+  ];
 
   @override
   void dispose() {
@@ -86,12 +92,14 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
         'username': _usernameController.text.trim(),
         'nombre_completo': _nombreCompletoController.text.trim(),
         'rol': _selectedRol,
-        'password': _passwordController.text,
         'activo': _activo,
+        // Para ENUM, enviamos el string exacto o null
+        'bodega': _selectedRol == 'usuario' ? null : _selectedBodega,
+        'password': _passwordController.text,
       };
 
       final resultado = await UsuariosService.crearUsuario(usuarioData, context);
-      
+
       if (resultado != null) {
         widget.onUsuarioCreado();
         Navigator.of(context).pop();
@@ -124,19 +132,14 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF001F5E),
-      surfaceTintColor: Colors.transparent,
       title: Row(
         children: [
-          const Icon(Icons.person_add, color: Colors.white),
+          const Icon(Icons.person_add),
           const SizedBox(width: 8),
-          const Text(
-            'Crear Nuevo Usuario',
-            style: TextStyle(color: Colors.white),
-          ),
+          const Text('Nuevo Usuario'),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -150,17 +153,9 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
               // Username
               TextFormField(
                 controller: _usernameController,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Username',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -177,17 +172,9 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
               // Nombre Completo
               TextFormField(
                 controller: _nombreCompletoController,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Nombre Completo',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -198,65 +185,61 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
               ),
               const SizedBox(height: 16),
 
-              
-              const SizedBox(height: 16),
-
               // Rol
               DropdownButtonFormField<String>(
                 value: _selectedRol,
-                style: const TextStyle(color: Colors.white),
-                dropdownColor: const Color(0xFF001F5E),
                 decoration: const InputDecoration(
                   labelText: 'Rol',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
-                items: _roles.map((String rol) {
-                  return DropdownMenuItem<String>(
-                    value: rol,
-                    child: Text(
-                      rol.toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
+                items: _roles.map((rol) => DropdownMenuItem(
+                  value: rol,
+                  child: Text(rol.toUpperCase()),
+                )).toList(),
+                onChanged: (newValue) {
                   setState(() {
                     _selectedRol = newValue!;
+                    if (_selectedRol == 'usuario') {
+                      _selectedBodega = null; // Limpiar bodega
+                    }
                   });
                 },
               ),
               const SizedBox(height: 16),
 
+              // Bodega: solo mostrar si rol no es 'usuario'
+              if (_selectedRol != 'usuario')
+                DropdownButtonFormField<String>(
+                  value: _selectedBodega,
+                  decoration: const InputDecoration(
+                    labelText: 'Bodega',
+                    border: OutlineInputBorder(),
+                  ),
+                  hint: const Text('Seleccione una bodega'),
+                  items: _bodegas.map((b) => DropdownMenuItem(
+                    value: b,
+                    child: Text(b),
+                  )).toList(),
+                  onChanged: (value) => setState(() => _selectedBodega = value),
+                  validator: _selectedRol != 'usuario' ? (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor seleccione una bodega';
+                    }
+                    return null;
+                  } : null,
+                ),
+
               // Contraseña
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor ingrese una contraseña';
-                  }
-                  if (value.length < 6) {
-                    return 'La contraseña debe tener al menos 6 caracteres';
-                  }
+                  if (value == null || value.isEmpty) return 'Ingrese contraseña';
+                  if (value.length < 6) return 'Debe tener al menos 6 caracteres';
                   return null;
                 },
               ),
@@ -266,22 +249,12 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Confirmar Contraseña',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor confirme la contraseña';
-                  }
+                  if (value == null || value.isEmpty) return 'Confirme contraseña';
                   return null;
                 },
               ),
@@ -292,25 +265,9 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
                 children: [
                   Checkbox(
                     value: _activo,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _activo = value!;
-                      });
-                    },
-                    checkColor: Colors.white,
-                    fillColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Colors.green;
-                        }
-                        return Colors.white70;
-                      },
-                    ),
+                    onChanged: (value) => setState(() => _activo = value!),
                   ),
-                  const Text(
-                    'Usuario Activo',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  const Text('Usuario Activo'),
                 ],
               ),
             ],
@@ -320,35 +277,24 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(color: Colors.white70),
-          ),
+          child: const Text('Cancelar'),
         ),
         ElevatedButton(
           onPressed: _loading ? null : _crearUsuario,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-          ),
           child: _loading
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Crear Usuario'),
         ),
       ],
-      actionsAlignment: MainAxisAlignment.spaceBetween,
     );
   }
 }
 
-// Diálogo para editar usuario
+// ------------------------- Editar Usuario -------------------------
 class _EditarUsuarioDialog extends StatefulWidget {
   final Usuario usuario;
   final VoidCallback onUsuarioActualizado;
@@ -370,11 +316,18 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
   final _confirmPasswordController = TextEditingController();
 
   String _selectedRol = 'usuario';
+  String? _selectedBodega;
   bool _activo = true;
   bool _loading = false;
   bool _cambiarPassword = false;
 
   final List<String> _roles = ['administrador', 'tecnico', 'bodega', 'usuario'];
+  // Valores corregidos según el ENUM de la base de datos
+  final List<String> _bodegas = [
+    'Bodega Principal',
+    'Bodega Garzón', 
+    'Bodega Pitalito' // Corregido el nombre
+  ];
 
   @override
   void initState() {
@@ -388,6 +341,7 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
     _nombreCompletoController.text = usuario.nombreCompleto;
     _selectedRol = usuario.rol;
     _activo = usuario.activo;
+    _selectedBodega = usuario.bodega is String ? usuario.bodega : null;
   }
 
   @override
@@ -420,19 +374,20 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
         'nombre_completo': _nombreCompletoController.text.trim(),
         'rol': _selectedRol,
         'activo': _activo,
+        // Para ENUM, enviamos el string exacto o null
+        'bodega': _selectedRol == 'usuario' ? null : _selectedBodega,
       };
 
-      // Solo incluir password si se está cambiando
       if (_cambiarPassword && _passwordController.text.isNotEmpty) {
         usuarioData['password'] = _passwordController.text;
       }
 
       final resultado = await UsuariosService.actualizarUsuario(
-        widget.usuario.id, 
-        usuarioData, 
-        context
+        widget.usuario.id,
+        usuarioData,
+        context,
       );
-      
+
       if (resultado != null) {
         widget.onUsuarioActualizado();
         Navigator.of(context).pop();
@@ -465,19 +420,14 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF001F5E),
-      surfaceTintColor: Colors.transparent,
       title: Row(
         children: [
-          const Icon(Icons.edit, color: Colors.white),
+          const Icon(Icons.edit),
           const SizedBox(width: 8),
-          const Text(
-            'Editar Usuario',
-            style: TextStyle(color: Colors.white),
-          ),
+          const Text('Editar Usuario'),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
+            icon: const Icon(Icons.close),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -491,17 +441,9 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
               // Username
               TextFormField(
                 controller: _usernameController,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Username',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -518,17 +460,9 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
               // Nombre Completo
               TextFormField(
                 controller: _nombreCompletoController,
-                style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
                   labelText: 'Nombre Completo',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -539,39 +473,49 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
               ),
               const SizedBox(height: 16),
 
-            
-  
-
               // Rol
               DropdownButtonFormField<String>(
                 value: _selectedRol,
-                style: const TextStyle(color: Colors.white),
-                dropdownColor: const Color(0xFF001F5E),
                 decoration: const InputDecoration(
                   labelText: 'Rol',
-                  labelStyle: TextStyle(color: Colors.white70),
                   border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
-                  ),
                 ),
-                items: _roles.map((String rol) {
-                  return DropdownMenuItem<String>(
-                    value: rol,
-                    child: Text(
-                      rol.toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
+                items: _roles.map((rol) => DropdownMenuItem(
+                  value: rol,
+                  child: Text(rol.toUpperCase()),
+                )).toList(),
+                onChanged: (newValue) {
                   setState(() {
                     _selectedRol = newValue!;
+                    if (_selectedRol == 'usuario') {
+                      _selectedBodega = null;
+                    }
                   });
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Bodega
+              DropdownButtonFormField<String>(
+                value: _selectedBodega,
+                decoration: const InputDecoration(
+                  labelText: 'Bodega',
+                  border: OutlineInputBorder(),
+                ),
+                hint: const Text('Seleccione una bodega'),
+                items: _bodegas.map((b) => DropdownMenuItem(
+                  value: b,
+                  child: Text(b),
+                )).toList(),
+                onChanged: _selectedRol == 'usuario' 
+                    ? null 
+                    : (value) => setState(() => _selectedBodega = value),
+                validator: _selectedRol != 'usuario' ? (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor seleccione una bodega';
+                  }
+                  return null;
+                } : null,
               ),
               const SizedBox(height: 16),
 
@@ -580,79 +524,43 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
                 children: [
                   Checkbox(
                     value: _cambiarPassword,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _cambiarPassword = value!;
-                      });
-                    },
-                    checkColor: Colors.white,
-                    fillColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Colors.blue;
-                        }
-                        return Colors.white70;
-                      },
-                    ),
+                    onChanged: (value) => setState(() => _cambiarPassword = value!),
                   ),
-                  const Text(
-                    'Cambiar contraseña',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  const Text('Cambiar contraseña'),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Contraseña (solo si se está cambiando)
               if (_cambiarPassword) ...[
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Nueva Contraseña',
-                    labelStyle: TextStyle(color: Colors.white70),
                     border: OutlineInputBorder(),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white70),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
                   ),
-                  validator: _cambiarPassword ? (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese una contraseña';
-                    }
-                    if (value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
+                  validator: (value) {
+                    if (_cambiarPassword) {
+                      if (value == null || value.isEmpty) return 'Ingrese contraseña';
+                      if (value.length < 6) return 'Debe tener al menos 6 caracteres';
                     }
                     return null;
-                  } : null,
+                  },
                 ),
                 const SizedBox(height: 16),
-
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Confirmar Nueva Contraseña',
-                    labelStyle: TextStyle(color: Colors.white70),
                     border: OutlineInputBorder(),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white70),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
                   ),
-                  validator: _cambiarPassword ? (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor confirme la contraseña';
+                  validator: (value) {
+                    if (_cambiarPassword && (value == null || value.isEmpty)) {
+                      return 'Confirme contraseña';
                     }
                     return null;
-                  } : null,
+                  },
                 ),
                 const SizedBox(height: 16),
               ],
@@ -662,25 +570,9 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
                 children: [
                   Checkbox(
                     value: _activo,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _activo = value!;
-                      });
-                    },
-                    checkColor: Colors.white,
-                    fillColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<WidgetState> states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Colors.green;
-                        }
-                        return Colors.white70;
-                      },
-                    ),
+                    onChanged: (value) => setState(() => _activo = value!),
                   ),
-                  const Text(
-                    'Usuario Activo',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  const Text('Usuario Activo'),
                 ],
               ),
             ],
@@ -690,30 +582,19 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.of(context).pop(),
-          child: const Text(
-            'Cancelar',
-            style: TextStyle(color: Colors.white70),
-          ),
+          child: const Text('Cancelar'),
         ),
         ElevatedButton(
           onPressed: _loading ? null : _actualizarUsuario,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
           child: _loading
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Actualizar Usuario'),
         ),
       ],
-      actionsAlignment: MainAxisAlignment.spaceBetween,
     );
   }
 }

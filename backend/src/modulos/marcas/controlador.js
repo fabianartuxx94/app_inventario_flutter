@@ -1,134 +1,192 @@
-const TABLA_MARCAS = "marcas";
+const TABLA_INVENTARIO = "inventario";
 
 module.exports = function (dbInyectada) {
   let db = dbInyectada;
   if (!db) db = require("../../DB/mysql");
 
-  async function todos() {
+  // 📋 Obtener inventario con filtros y paginación
+  async function todos(usuario, queryParams = {}) {
     try {
-      console.log("📋 SOLICITANDO TODAS LAS MARCAS");
-      
-      // ✅ CORREGIDO: Solo solicitar columnas que existen
-      const sql = `SELECT id, nombre FROM ${TABLA_MARCAS} ORDER BY nombre`;
-      const resultado = await db.consultaDirecta(sql);
-      
-      console.log(`✅ SE OBTUVIERON ${resultado.length} MARCAS`);
-      return resultado;
+      const {
+        page = 1,
+        limit = 50,
+        search = '',
+        estado = '',
+        bodega = '',
+        tipo_bodega = '',
+        marca = '',
+        tipo_articulo = ''
+      } = queryParams;
+
+      const offset = (page - 1) * limit;
+
+      let sql = `
+        SELECT 
+          i.id,
+          i.articulo_id,
+          i.placa,
+          i.serial,
+          i.estado,
+          i.cantidad,
+          i.bodega,
+          i.ubicacion_detallada,
+          i.fecha_creacion,
+          i.fecha_actualizacion,
+          a.referencia AS articulo_referencia,
+          a.descripcion AS articulo_descripcion,
+          a.tipo_articulo,
+          a.tipo_bodega,
+          c.nombre AS categoria_nombre,
+          m.nombre AS marca_nombre
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        WHERE i.estado != 'Baja'
+      `;
+
+      const params = [];
+
+      // 🔒 Filtro de seguridad por bodega
+      if (usuario.rol !== "administrador" && usuario.bodega !== null) {
+        sql += ` AND i.bodega = ?`;
+        params.push(usuario.bodega);
+      }
+
+      // 🔍 Búsqueda global (incluye categoría)
+      if (search) {
+        sql += ` AND (
+          a.referencia LIKE ? OR 
+          a.descripcion LIKE ? OR 
+          i.placa LIKE ? OR 
+          i.serial LIKE ? OR
+          c.nombre LIKE ?
+        )`;
+        const searchTerm = `%${search}%`;
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      }
+
+      // 🏢 Filtros por atributo
+      if (estado) {
+        sql += ` AND i.estado = ?`;
+        params.push(estado);
+      }
+
+      if (bodega) {
+        sql += ` AND i.bodega = ?`;
+        params.push(bodega);
+      }
+
+      if (tipo_bodega) {
+        sql += ` AND a.tipo_bodega = ?`;
+        params.push(tipo_bodega);
+      }
+
+      if (marca) {
+        sql += ` AND m.nombre = ?`;
+        params.push(marca);
+      }
+
+      if (tipo_articulo) {
+        sql += ` AND a.tipo_articulo = ?`;
+        params.push(tipo_articulo);
+      }
+
+      // 📊 Contar total (para paginación)
+      const countSql = `SELECT COUNT(*) as total FROM (${sql}) AS filtered`;
+      const countResult = await db.consultaDirecta(countSql, params);
+      const total = countResult[0].total;
+
+      // 📄 Aplicar paginación y ordenamiento
+      sql += ` ORDER BY i.fecha_actualizacion DESC LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), offset);
+
+      const items = await db.consultaDirecta(sql, params);
+
+      return {
+        items,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
     } catch (error) {
-      console.error("❌ ERROR EN TODOS MARCAS:", error);
+      console.error("❌ ERROR AL CONSULTAR INVENTARIO:", error);
       throw error;
     }
   }
 
-  async function uno(id) {
+  // 🔍 Obtener un registro específico
+  async function uno(id, usuario) {
     try {
-      console.log("🔍 SOLICITANDO MARCA ID:", id);
-      
-      // ✅ CORREGIDO: Solo solicitar columnas que existen
-      const sql = `SELECT id, nombre FROM ${TABLA_MARCAS} WHERE id = ?`;
+      const sql = `
+        SELECT 
+          i.*,
+          a.*,
+          c.nombre AS categoria_nombre,
+          c.stock_minimo,
+          m.nombre AS marca_nombre,
+          u.nombre_completo AS usuario_creador
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        LEFT JOIN usuarios u ON i.usuario_id = u.id
+        WHERE i.id = ?
+      `;
+
       const resultado = await db.consultaDirecta(sql, [id]);
-      
-      console.log(`✅ MARCA ENCONTRADA:`, resultado.length > 0 ? "SÍ" : "NO");
-      return resultado.length > 0 ? resultado[0] : null;
-    } catch (error) {
-      console.error("❌ ERROR EN UNO MARCA:", error);
-      throw error;
-    }
-  }
+      if (!resultado.length) throw new Error("Registro no encontrado");
 
-  async function agregar(data) {
-    try {
-      console.log("📥 AGREGANDO NUEVA MARCA:", data.nombre);
+      const registro = resultado[0];
 
-      // Verificar si la marca ya existe
-      const existe = await db.consultaDirecta(
-        `SELECT id FROM ${TABLA_MARCAS} WHERE nombre = ?`, 
-        [data.nombre]
-      );
-
-      if (existe.length > 0) {
-        throw new Error("La marca ya existe");
+      // ✅ Verificar permisos
+      if (usuario.rol === "administrador" || 
+          usuario.bodega === null || 
+          usuario.bodega === registro.bodega) {
+        return registro;
       }
 
-      // ✅ CORREGIDO: Solo insertar columnas que existen
-      const sql = `INSERT INTO ${TABLA_MARCAS} (nombre) VALUES (?)`;
-      const resultado = await db.consultaDirecta(sql, [data.nombre]);
-
-      console.log("✅ MARCA CREADA - ID:", resultado.insertId);
-      return {
-        message: "Marca creada correctamente",
-        id: resultado.insertId,
-        nombre: data.nombre
-      };
+      throw new Error("No tienes permiso para ver este registro");
     } catch (error) {
-      console.error("❌ ERROR EN AGREGAR MARCA:", error);
+      console.error("❌ ERROR AL CONSULTAR REGISTRO:", error);
       throw error;
     }
   }
 
-  async function actualizar(id, data) {
+  // 📊 Obtener opciones de filtros disponibles
+  async function filtrosDisponibles(usuario) {
     try {
-      console.log("🔄 ACTUALIZANDO MARCA ID:", id);
+      const sql = `
+        SELECT 
+          JSON_ARRAYAGG(DISTINCT i.estado) as estados,
+          JSON_ARRAYAGG(DISTINCT i.bodega) as bodegas,
+          JSON_ARRAYAGG(DISTINCT a.tipo_bodega) as tipos_bodega,
+          JSON_ARRAYAGG(DISTINCT a.tipo_articulo) as tipos_articulo,
+          JSON_ARRAYAGG(DISTINCT m.nombre) as marcas,
+          JSON_ARRAYAGG(DISTINCT c.nombre) as categorias
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        WHERE i.estado != 'Baja'
+      `;
 
-      // Verificar si el nombre ya existe en otra marca
-      const existe = await db.consultaDirecta(
-        `SELECT id FROM ${TABLA_MARCAS} WHERE nombre = ? AND id != ?`, 
-        [data.nombre, id]
-      );
-
-      if (existe.length > 0) {
-        throw new Error("Ya existe otra marca con ese nombre");
+      const params = [];
+      if (usuario.rol !== "administrador" && usuario.bodega !== null) {
+        sql += ` AND i.bodega = ?`;
+        params.push(usuario.bodega);
       }
 
-      // ✅ CORREGIDO: Solo actualizar columnas que existen
-      const sql = `UPDATE ${TABLA_MARCAS} SET nombre = ? WHERE id = ?`;
-      await db.consultaDirecta(sql, [data.nombre, id]);
-
-      console.log("✅ MARCA ACTUALIZADA - ID:", id);
-      return {
-        message: "Marca actualizada correctamente",
-        id: parseInt(id),
-        nombre: data.nombre
-      };
+      const resultado = await db.consultaDirecta(sql, params);
+      return resultado[0] || {};
     } catch (error) {
-      console.error("❌ ERROR EN ACTUALIZAR MARCA:", error);
+      console.error("❌ ERROR AL OBTENER FILTROS:", error);
       throw error;
     }
   }
 
-  async function eliminar(id) {
-    try {
-      console.log("🗑️ ELIMINANDO MARCA ID:", id);
-
-      // Verificar si la marca está siendo usada en artículos
-      const enUso = await db.consultaDirecta(
-        `SELECT id FROM articulos WHERE marca_id = ? LIMIT 1`, 
-        [id]
-      );
-
-      if (enUso.length > 0) {
-        throw new Error("No se puede eliminar la marca porque está siendo utilizada en artículos");
-      }
-
-      const sql = `DELETE FROM ${TABLA_MARCAS} WHERE id = ?`;
-      await db.consultaDirecta(sql, [id]);
-
-      console.log("✅ MARCA ELIMINADA - ID:", id);
-      return {
-        message: "Marca eliminada correctamente",
-        id: parseInt(id)
-      };
-    } catch (error) {
-      console.error("❌ ERROR EN ELIMINAR MARCA:", error);
-      throw error;
-    }
-  }
-
-  return {
-    todos,
-    uno,
-    agregar,
-    actualizar,
-    eliminar
-  };
+  return { todos, uno, filtrosDisponibles };
 };

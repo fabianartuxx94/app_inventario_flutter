@@ -6,8 +6,8 @@ module.exports = {
   },
 
   jwt: {
-    clave: process.env.JWT_CLAVE || "clave_inventario",
-    tiempoExpiracion: process.env.JWT_TIEMPO_EXPIRACION || "1h",
+    clave: process.env.JWT_SECRET || "suchance27", // 👈 cambia esta línea
+    tiempoExpiracion: process.env.JWT_TIEMPO_EXPIRACION || "6h",
   },
 
   mysql: {

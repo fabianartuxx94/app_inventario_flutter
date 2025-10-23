@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/configuracion/configuracion_screen.dart';
+import 'package:frontend/screens/inventario/inventario_screen.dart';
 import 'package:frontend/screens/usuarios/usuarios_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -77,14 +79,18 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     switch (route) {
       case '/dashboard':
         return DashboardHome(authProvider: Provider.of<AuthProvider>(context, listen: false));
+      case '/general':
+        return InventarioScreen() ;
+      case '/stock':
+        return _buildPlaceholderPage("Stock"); 
+      case '/activos':
+        return _buildPlaceholderPage("Activos");    
+      case '/consumibles':
+        return _buildPlaceholderPage("Consumibles");   
       case '/categorias':
         return const CategoriasPage();
       case '/articulos':
         return _buildArticulosScreen();
-      case '/activos':
-        return _buildPlaceholderPage("Activos");
-      case '/consumibles':
-        return _buildPlaceholderPage("Consumibles");
       case '/movimientos':
         return _buildPlaceholderPage("Movimientos");
       case '/sitios-venta':
@@ -94,7 +100,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
       case '/reportes':
         return _buildPlaceholderPage("Reportes");
       case '/configuracion':
-        return _buildPlaceholderPage("Configuración");
+        return const ConfiguracionScreen();
       case '/ruteros':
         return _buildPlaceholderPage("Ruteros");
       case '/mantenimientos':
@@ -338,7 +344,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
                 },
               ),
             );
-          }).toList(),
+          }),
       ],
     );
   }
@@ -522,107 +528,99 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
     }
   }
 
-  Widget _buildDrawer(BuildContext context, AuthProvider authProvider) {
-    return Drawer(
-      backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
-      child: Column(
-        children: [
-          const SizedBox(height: 40),
-          // ✅ CORREGIDO: Imagen completa en drawer
-          Container(
-            width: 150,
-            height: 150,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Image.asset(
-              'assets/suchance.png', // ✅ Cambiado a .png
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: _getRoleColor(authProvider.userRol),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 60,
-                  ),
-                );
-              },
+Widget _buildDrawer(BuildContext context, AuthProvider authProvider) {
+  return Drawer(
+    backgroundColor: const Color(0xFF001F5E).withOpacity(0.9),
+    child: Column(
+      children: [
+        const SizedBox(height: 40),
+        // ✅ MODIFICADO: Imagen más pequeña para móvil
+        Container(
+          width: 80, // Reducido de 150 a 80
+          height: 80, // Reducido de 150 a 80
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Image.asset(
+            'assets/suchance.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: _getRoleColor(authProvider.userRol),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 40, // Reducido de 60 a 40
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "InventarioApp",
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        const SizedBox(height: 8),
+        // ✅ NUEVO: Mostrar nombre de usuario debajo de InventarioApp
+        Text(
+          authProvider.user?.displayName ?? 'Usuario',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getRoleColor(authProvider.userRol),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            _getRoleDisplayName(authProvider.userRol),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "InventarioApp",
-            style: TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: _getRoleColor(authProvider.userRol),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              _getRoleDisplayName(authProvider.userRol),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          Expanded(
-            child: ListView(
+        ),
+        const SizedBox(height: 20),
+        
+        // ✅ MODIFICADO: Expanded con SingleChildScrollView para que el menú sea desplazable
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 for (int i = 0; i < _menuOptions.length; i++)
                   _buildMobileMenuTile(_menuOptions[i], i, context),
               ],
             ),
           ),
-          
-          const Spacer(),
-          const Divider(color: Colors.white54),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  authProvider.user?.displayName ?? 'Usuario',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  authProvider.user?.username ?? '',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        
+        // ✅ ELIMINADO: Spacer() que ocupaba espacio innecesario
+        const Divider(color: Colors.white54),
+        // ✅ ELIMINADO: Sección de nombre de usuario y username que estaba aquí
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.white),
+          title: const Text(
+            "Cerrar sesión",
+            style: TextStyle(color: Colors.white),
           ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.white),
-            title: const Text(
-              "Cerrar sesión",
-              style: TextStyle(color: Colors.white),
-            ),
-            onTap: _logout,
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
+          onTap: _logout,
+        ),
+        const SizedBox(height: 20),
+      ],
+    ),
+  );
+}
 
   Widget _buildMobileMenuTile(MenuOption option, int index, BuildContext context) {
     final hasSubmenu = option.submenu != null && option.submenu!.isNotEmpty;
@@ -680,7 +678,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
                 },
               ),
             );
-          }).toList(),
+          }),
       ],
     );
   }

@@ -1,6 +1,7 @@
 const TABLA_CATEGORIAS = "categorias";
-const TABLA_ARTICULOS = "articulos";
 const TABLA_MARCAS = "marcas";
+const TABLA_ARTICULOS = "articulos";
+
 
 module.exports = function (dbInyectada) {
   let db = dbInyectada;
@@ -10,8 +11,9 @@ module.exports = function (dbInyectada) {
     try {
       console.log("📥 DATOS RECIBIDOS EN AGREGAR ARTÍCULO:");
       console.log("   categoria_id:", data.categoria_id);
-      console.log("   articulo_id:", data.articulo_id);
       console.log("   marca_id:", data.marca_id);
+      console.log("   articulo_id:", data.articulo_id);
+      
 
       let articuloId;
 
@@ -23,9 +25,10 @@ module.exports = function (dbInyectada) {
                               SET categoria_id = ?, 
                                   marca_id = ?,
                                   tipo_bodega = ?, 
+                                  es_activo = ?,
                                   tipo_articulo = ?,
                                   referencia = ?,
-                                  ubicacion_bodega = ?,
+                                  descripcion = ?,
                                   imagen_path = ?
                               WHERE id = ?`;
 
@@ -33,9 +36,10 @@ module.exports = function (dbInyectada) {
           data.categoria_id,
           data.marca_id,
           data.tipo_bodega,
+          data.es_activo,
           data.tipo_articulo,
           data.referencia,
-          data.ubicacion_bodega,
+          data.descripcion,
           data.imagen_path,
           data.articulo_id,
         ];
@@ -48,18 +52,19 @@ module.exports = function (dbInyectada) {
         console.log("🆕 CREANDO NUEVO ARTÍCULO");
 
         const queryArticulo = `INSERT INTO ${TABLA_ARTICULOS} 
-                              (categoria_id, marca_id, tipo_bodega, tipo_articulo, referencia, ubicacion_bodega, imagen_path) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?)`;
+  (categoria_id, marca_id, tipo_bodega, es_activo, tipo_articulo, referencia, descripcion, imagen_path) 
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-        const valuesArticulo = [
-          data.categoria_id,
-          data.marca_id,
-          data.tipo_bodega,
-          data.tipo_articulo,
-          data.referencia,
-          data.ubicacion_bodega,
-          data.imagen_path,
-        ];
+const valuesArticulo = [
+  data.categoria_id,
+  data.marca_id,
+  data.tipo_bodega,
+  data.es_activo,
+  data.tipo_articulo,
+  data.referencia,
+  data.descripcion,
+  data.imagen_path,
+];
 
         const resultado = await db.consultaDirecta(queryArticulo, valuesArticulo);
         articuloId = resultado.insertId;
@@ -106,7 +111,8 @@ module.exports = function (dbInyectada) {
         a.referencia,
         a.tipo_bodega,
         a.tipo_articulo,
-        a.ubicacion_bodega,
+        a.es_activo,
+        a.descripcion,
         a.imagen_path,
         a.creado_en,
         c.id AS categoria_id,
@@ -136,11 +142,12 @@ module.exports = function (dbInyectada) {
       
       const sql = `
       SELECT 
-        a.id AS articulo_id,
+         a.id AS articulo_id,
         a.referencia,
         a.tipo_bodega,
         a.tipo_articulo,
-        a.ubicacion_bodega,
+        a.es_activo,
+        a.descripcion,
         a.imagen_path,
         a.creado_en,
         c.id AS categoria_id,

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/services/marcas_service.dart';
 import 'package:frontend/widgets/categoria_dialog.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
 import '../../services/upload_service.dart';
@@ -27,10 +26,13 @@ class CrearArticuloScreen extends StatefulWidget {
 class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   final _formKey = GlobalKey<FormState>();
   final _referenciaController = TextEditingController();
-  final _ubicacionBodegaController = TextEditingController();
+  final _stockMinimoController = TextEditingController(text: '0');
+  final _descripcionController = TextEditingController();
 
+  // ✅ CORREGIDO: Variables de estado definidas correctamente
   String _tipoBodega = 'Sistemas';
   String _tipoArticulo = 'Activo Fijo';
+  bool _esActivo = true; // ✅ CORREGIDO: Variable faltante definida
   dynamic _imagenSeleccionada;
   bool _isLoading = false;
   bool _cargandoCategorias = true;
@@ -56,13 +58,14 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   bool _mostrarCrearMarca = false;
   bool _mostrarListaMarcas = false;
 
-  final List<Map<String, String>> _tiposArticulo = [
+  // ✅ OPTIMIZADO: Constantes para listas estáticas
+  static const List<Map<String, String>> _tiposArticulo = [
     {'value': 'Activo Fijo', 'label': 'Activo Fijo'},
     {'value': 'Activo de Control', 'label': 'Activo de Control'},
     {'value': 'Consumible', 'label': 'Consumible'},
   ];
 
-  final List<String> _bodegas = ['Sistemas', 'Bmd'];
+  static const List<String> _bodegas = ['Sistemas', 'Bmd'];
 
   @override
   void initState() {
@@ -74,20 +77,28 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
 
   @override
   void dispose() {
+    _referenciaController.dispose();
+    _stockMinimoController.dispose();
     _categoriaSearchController.dispose();
     _marcaSearchController.dispose();
+    _descripcionController.dispose();
     super.dispose();
   }
 
+  // ✅ OPTIMIZADO: Método único para cargar datos
   Future<void> _cargarDatosIniciales() async {
     try {
       final token = Provider.of<AuthProvider>(context, listen: false).token!;
-      final categorias = await ArticuloService.obtenerCategorias(token);
-      final marcas = await ArticuloService.obtenerMarcas(token);
       
+      // ✅ OPTIMIZADO: Carga paralela de categorías y marcas
+      final futures = await Future.wait([
+        ArticuloService.obtenerCategorias(token),
+        ArticuloService.obtenerMarcas(token),
+      ]);
+
       setState(() {
-        _categorias = categorias;
-        _marcas = marcas;
+        _categorias = futures[0];
+        _marcas = futures[1];
         _categoriasFiltradas = [];
         _marcasFiltradas = [];
         _cargandoCategorias = false;
@@ -98,140 +109,134 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         _cargandoCategorias = false;
         _cargandoMarcas = false;
       });
-      _mostrarError('Error al cargar datos: $e');
+      _mostrarError('Error al cargar datos iniciales: $e');
     }
   }
 
-  String _getNombreCategoria() {
-    if (_categoriaId == null) return '';
+  // ✅ OPTIMIZADO: Método reutilizable para buscar en listas
+  String _obtenerNombreDeLista(List<dynamic> lista, int? id, String campoNombre) {
+    if (id == null) return '';
     try {
-      final categoria = _categorias.firstWhere(
-        (c) => (c['id'] as int) == _categoriaId,
+      final elemento = lista.firstWhere(
+        (elemento) => (elemento['id'] as int) == id,
+        orElse: () => {},
       );
-      return categoria['nombre']?.toString() ?? '';
+      return elemento.isNotEmpty ? elemento[campoNombre]?.toString() ?? '' : '';
     } catch (e) {
       return '';
     }
   }
 
-  String _getNombreMarca() {
-    if (_marcaId == null) return 'No seleccionada';
-    try {
-      final marca = _marcas.firstWhere(
-        (m) {
-          final id = m['id'];
-          if (id == null) return false;
-          return (id is int ? id : int.tryParse(id.toString())) == _marcaId;
-        },
+  String _getNombreCategoria() => _obtenerNombreDeLista(_categorias, _categoriaId, 'nombre');
+  String _getNombreMarca() => _obtenerNombreDeLista(_marcas, _marcaId, 'nombre');
+
+  Future<void> _crearNuevaCategoria() async {
+    final nombreCategoria = _categoriaSearchController.text.trim();
+    if (nombreCategoria.isEmpty) return;
+
+    final existeCategoria = _categorias.any((categoria) =>
+        categoria['nombre'].toString().toLowerCase() == nombreCategoria.toLowerCase());
+
+    if (existeCategoria) {
+      _seleccionarElementoExistente(_categorias, nombreCategoria, 'nombre', (id) {
+        _categoriaId = id;
+      }, _categoriaSearchController);
+    } else {
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) => CategoriaDialog(
+          categoria: null, 
+          nombrePredefinido: nombreCategoria,
+          onGuardado: _cargarDatosIniciales,
+        ),
       );
-      return marca['nombre']?.toString() ?? 'Nombre no encontrado';
-    } catch (e) {
-      return 'Error buscando marca: $e';
+
+      if (result != null && result['nombre'] != null) {
+        await _procesarElementoCreado(result['nombre']!, _categorias, 'nombre', (id) {
+          _categoriaId = id;
+        }, _categoriaSearchController);
+      }
     }
   }
 
-Future<void> _crearNuevaCategoria() async {
-  final nombreCategoria = _categoriaSearchController.text.trim();
-  if (nombreCategoria.isEmpty) return;
+  Future<void> _crearNuevaMarca() async {
+    final nombreMarca = _marcaSearchController.text.trim();
+    if (nombreMarca.isEmpty) return;
 
-  // ✅ VERIFICAR si la categoría NO existe
-  final existeCategoria = _categorias.any((categoria) =>
-      categoria['nombre'].toString().toLowerCase() == nombreCategoria.toLowerCase());
+    final existeMarca = _marcas.any((marca) =>
+        marca['nombre'].toString().toLowerCase() == nombreMarca.toLowerCase());
 
-  if (existeCategoria) {
-    // Si ya existe, seleccionarla directamente
-    final categoriaExistente = _categorias.firstWhere((categoria) =>
-        categoria['nombre'].toString().toLowerCase() == nombreCategoria.toLowerCase());
+    if (existeMarca) {
+      _seleccionarElementoExistente(_marcas, nombreMarca, 'nombre', (id) {
+        _marcaId = id;
+      }, _marcaSearchController);
+    } else {
+      final confirmarCreacion = await _mostrarDialogoConfirmacion(
+        'Crear Nueva Marca',
+        '¿Estás seguro de que quieres crear la marca "$nombreMarca"?',
+      );
+
+      if (confirmarCreacion == true) {
+        await _crearMarcaEnServidor(nombreMarca);
+      }
+    }
+  }
+
+  // ✅ OPTIMIZADO: Métodos auxiliares reutilizables
+  void _seleccionarElementoExistente(
+    List<dynamic> lista,
+    String nombre,
+    String campoNombre,
+    Function(int) onSeleccionado,
+    TextEditingController controller,
+  ) {
+    final elementoExistente = lista.firstWhere(
+      (elemento) => elemento[campoNombre].toString().toLowerCase() == nombre.toLowerCase(),
+    );
     
     setState(() {
-      _categoriaId = categoriaExistente['id'] as int;
-      _categoriaSearchController.text = categoriaExistente['nombre'];
+      onSeleccionado(elementoExistente['id'] as int);
+      controller.text = elementoExistente[campoNombre];
       _mostrarCrearCategoria = false;
       _mostrarListaCategorias = false;
     });
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✅ Categoría "$nombreCategoria" seleccionada'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  } else {
-    // ✅ ABRIR CategoriaDialog CON EL NOMBRE PRELLENADO
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => CategoriaDialog(
-        categoria: null, 
-        nombrePredefinido: nombreCategoria, // ← PASA EL NOMBRE DE BÚSQUEDA
-        onGuardado: () {
-          // Recargar categorías después de guardar
-          _cargarDatosIniciales();
-        },
-      ),
-    );
-
-    // ✅ ACTUALIZAR INTERFAZ después de crear categoría
-    if (result != null && result['nombre'] != null) {
-      setState(() {
-        _categoriaSearchController.text = result['nombre'];
-        _mostrarCrearCategoria = false;
-        _mostrarListaCategorias = false;
-      });
-      
-      // Recargar categorías para obtener la nueva con ID real
-      await _cargarDatosIniciales();
-      
-      // Intentar seleccionar la categoría recién creada
-      final nuevaCategoria = _categorias.firstWhere(
-        (c) => c['nombre'] == result['nombre'],
-        orElse: () => {},
-      );
-      
-      if (nuevaCategoria.isNotEmpty) {
-        setState(() {
-          _categoriaId = nuevaCategoria['id'] as int;
-        });
-      }
-    }
+    _mostrarSnackBar('✅ $nombre seleccionado', Colors.blue);
   }
-}
 
-// Alternativa con diálogo más atractivo
-Future<void> _crearNuevaMarca() async {
-  final nombreMarca = _marcaSearchController.text.trim();
-  if (nombreMarca.isEmpty) return;
-
-  // ✅ VERIFICAR si la marca NO existe
-  final existeMarca = _marcas.any((marca) =>
-      marca['nombre'].toString().toLowerCase() == nombreMarca.toLowerCase());
-
-  if (existeMarca) {
-    // Si ya existe, seleccionarla directamente
-    final marcaExistente = _marcas.firstWhere((marca) =>
-        marca['nombre'].toString().toLowerCase() == nombreMarca.toLowerCase());
-    
-    final marcaId = marcaExistente['id'];
-    
+  Future<void> _procesarElementoCreado(
+    String nombre,
+    List<dynamic> lista,
+    String campoNombre,
+    Function(int) onSeleccionado,
+    TextEditingController controller,
+  ) async {
     setState(() {
-      _marcaId = marcaId is int ? marcaId : int.tryParse(marcaId.toString());
-      _marcaSearchController.text = marcaExistente['nombre'];
-      _mostrarCrearMarca = false;
-      _mostrarListaMarcas = false;
+      controller.text = nombre;
+      _mostrarCrearCategoria = false;
+      _mostrarListaCategorias = false;
     });
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✅ Marca "$nombreMarca" seleccionada'),
-        backgroundColor: Colors.blue,
-      ),
+    await _cargarDatosIniciales();
+    
+    final nuevoElemento = lista.firstWhere(
+      (elemento) => elemento[campoNombre] == nombre,
+      orElse: () => {},
     );
-  } else {
-    // ✅ MOSTRAR DIÁLOGO DE CONFIRMACIÓN antes de crear
-    final confirmarCreacion = await showDialog<bool>(
+    
+    if (nuevoElemento.isNotEmpty) {
+      setState(() {
+        onSeleccionado(nuevoElemento['id'] as int);
+      });
+    }
+  }
+
+  Future<bool?> _mostrarDialogoConfirmacion(String titulo, String contenido) async {
+    return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Crear Nueva Marca'),
-        content: Text('¿Estás seguro de que quieres crear la marca "$nombreMarca"?'),
+        title: Text(titulo),
+        content: Text(contenido),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -239,145 +244,106 @@ Future<void> _crearNuevaMarca() async {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFf59e0b),
-            ),
-            child: const Text('Crear Marca'),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFf59e0b)),
+            child: const Text('Crear'),
           ),
         ],
       ),
     );
+  }
 
-    // ✅ SI EL USUARIO CONFIRMA, CREAR LA MARCA
-    if (confirmarCreacion == true) {
-      setState(() => _isLoading = true);
+  Future<void> _crearMarcaEnServidor(String nombreMarca) async {
+    setState(() => _isLoading = true);
 
-      try {
-        final token = Provider.of<AuthProvider>(context, listen: false).token!;
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      final marcaData = {"nombre": nombreMarca};
+
+      final resultado = await MarcasService.guardarMarca(marcaData, token);
+      
+      if (resultado['success'] == true) {
+        await _recargarMarcas();
+        await _procesarElementoCreado(nombreMarca, _marcas, 'nombre', (id) {
+          _marcaId = id;
+        }, _marcaSearchController);
         
-        final marcaData = {
-          "nombre": nombreMarca,
-        };
-
-        final resultado = await MarcasService.guardarMarca(marcaData, token);
-        
-        if (resultado['success'] == true) {
-          // ✅ RECARGAR MARCAS DESDE EL SERVIDOR
-          await _recargarMarcas();
-          
-          // Buscar y seleccionar la nueva marca
-          final nuevaMarca = _marcas.firstWhere(
-            (marca) => marca['nombre'] == nombreMarca,
-            orElse: () => resultado['data'] ?? {},
-          );
-          
-          if (nuevaMarca.isNotEmpty) {
-            final nuevaMarcaId = nuevaMarca['id'];
-            
-            setState(() {
-              _marcaId = nuevaMarcaId is int ? nuevaMarcaId : int.tryParse(nuevaMarcaId.toString());
-              _marcaSearchController.text = nuevaMarca['nombre'];
-              _mostrarCrearMarca = false;
-              _mostrarListaMarcas = false;
-            });
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Marca "$nombreMarca" creada exitosamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          } else {
-            _mostrarError('Error: No se pudo encontrar la marca recién creada');
-          }
-        } else {
-          _mostrarError(resultado['error'] ?? 'Error al crear la marca');
-        }
-      } catch (e) {
-        _mostrarError('Error al crear marca: $e');
-      } finally {
-        setState(() => _isLoading = false);
+        _mostrarSnackBar('✅ Marca "$nombreMarca" creada exitosamente', Colors.green);
+      } else {
+        _mostrarError(resultado['error'] ?? 'Error al crear la marca');
       }
-    } else {
-      // Usuario canceló la creación
-      setState(() {
-        _mostrarCrearMarca = false;
-        _mostrarListaMarcas = false;
-      });
+    } catch (e) {
+      _mostrarError('Error al crear marca: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
-}
 
-// Método auxiliar para recargar marcas
-Future<void> _recargarMarcas() async {
-  try {
-    final token = Provider.of<AuthProvider>(context, listen: false).token!;
-    final marcas = await ArticuloService.obtenerMarcas(token);
-    
-    setState(() {
-      _marcas = marcas;
-    });
-  } catch (e) {
-    print('Error al recargar marcas: $e');
-  }
-}
-
-  void _filtrarCategorias() {
-    final query = _categoriaSearchController.text.toLowerCase();
-    
+  // ✅ OPTIMIZADO: Método único para filtrar listas
+  void _filtrarLista({
+    required String query,
+    required List<dynamic> listaCompleta,
+    required Function(List<dynamic>) onFiltrado,
+    required Function(bool) onMostrarCrear,
+    required Function(bool) onMostrarLista,
+    required String campoNombre,
+  }) {
     if (query.isEmpty) {
-      setState(() {
-        _categoriasFiltradas = [];
-        _mostrarCrearCategoria = false;
-        _mostrarListaCategorias = false;
-      });
+      onFiltrado([]);
+      onMostrarCrear(false);
+      onMostrarLista(false);
       return;
     }
 
-    final categoriasFiltradas = _categorias.where((categoria) {
-      final nombre = categoria['nombre'].toString().toLowerCase();
-      return nombre.contains(query);
+    final elementosFiltrados = listaCompleta.where((elemento) {
+      final nombre = elemento[campoNombre].toString().toLowerCase();
+      return nombre.contains(query.toLowerCase());
     }).toList();
 
-    final existeCategoria = _categorias.any((categoria) =>
-        categoria['nombre'].toString().toLowerCase() == query);
+    final existeElemento = listaCompleta.any((elemento) =>
+        elemento[campoNombre].toString().toLowerCase() == query.toLowerCase());
 
-    setState(() {
-      _categoriasFiltradas = categoriasFiltradas;
-      _mostrarCrearCategoria = !existeCategoria && query.isNotEmpty;
-      _mostrarListaCategorias = true;
-    });
+    onFiltrado(elementosFiltrados);
+    onMostrarCrear(!existeElemento && query.isNotEmpty);
+    onMostrarLista(true);
+  }
+
+  void _filtrarCategorias() {
+    _filtrarLista(
+      query: _categoriaSearchController.text,
+      listaCompleta: _categorias,
+      onFiltrado: (filtradas) => setState(() => _categoriasFiltradas = filtradas),
+      onMostrarCrear: (mostrar) => setState(() => _mostrarCrearCategoria = mostrar),
+      onMostrarLista: (mostrar) => setState(() => _mostrarListaCategorias = mostrar),
+      campoNombre: 'nombre',
+    );
   }
 
   void _filtrarMarcas() {
-    final query = _marcaSearchController.text.toLowerCase();
-    
-    if (query.isEmpty) {
-      setState(() {
-        _marcasFiltradas = [];
-        _mostrarCrearMarca = false;
-        _mostrarListaMarcas = false;
-      });
-      return;
-    }
-
-    final marcasFiltradas = _marcas.where((marca) {
-      final nombre = marca['nombre'].toString().toLowerCase();
-      return nombre.contains(query);
-    }).toList();
-
-    final existeMarca = _marcas.any((marca) =>
-        marca['nombre'].toString().toLowerCase() == query);
-
-    setState(() {
-      _marcasFiltradas = marcasFiltradas;
-      _mostrarCrearMarca = !existeMarca && query.isNotEmpty;
-      _mostrarListaMarcas = true;
-    });
+    _filtrarLista(
+      query: _marcaSearchController.text,
+      listaCompleta: _marcas,
+      onFiltrado: (filtradas) => setState(() => _marcasFiltradas = filtradas),
+      onMostrarCrear: (mostrar) => setState(() => _mostrarCrearMarca = mostrar),
+      onMostrarLista: (mostrar) => setState(() => _mostrarListaMarcas = mostrar),
+      campoNombre: 'nombre',
+    );
   }
 
+  Future<void> _recargarMarcas() async {
+    try {
+      final token = Provider.of<AuthProvider>(context, listen: false).token!;
+      final marcas = await ArticuloService.obtenerMarcas(token);
+      setState(() => _marcas = marcas);
+    } catch (e) {
+      print('Error al recargar marcas: $e');
+    }
+  }
+
+  // ✅ CORREGIDO: Incluye todos los campos del modelo Articulo
   Future<void> _crearArticulo() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // ✅ CORREGIDO: Validaciones completas
     if (_categoriaId == null) {
       _mostrarError('Por favor selecciona una categoría');
       return;
@@ -393,15 +359,13 @@ Future<void> _recargarMarcas() async {
       final token = Provider.of<AuthProvider>(context, listen: false).token!;
       String? imagenUrl;
 
+      // Subir imagen si existe
       if (_imagenSeleccionada != null) {
-        final nombreCategoria = _getNombreCategoria();
-        final nombreMarca = _getNombreMarca();
-        
         final uploadResult = await UploadService.uploadImage(
           _imagenSeleccionada!,
           token,
-          nombreArticulo: nombreCategoria,
-          marca: nombreMarca,
+          nombreArticulo: _getNombreCategoria(),
+          marca: _getNombreMarca(),
           referencia: _referenciaController.text.trim(),
         );
         if (uploadResult['success']) {
@@ -409,7 +373,9 @@ Future<void> _recargarMarcas() async {
         }
       }
 
+      // ✅ CORREGIDO: Crear artículo con todos los campos del modelo
       final nuevoArticulo = Articulo(
+        articuloId: null,
         categoriaId: _categoriaId!,
         categoriaNombre: _getNombreCategoria(),
         marcaId: _marcaId!,
@@ -417,25 +383,20 @@ Future<void> _recargarMarcas() async {
         referencia: _referenciaController.text.trim(),
         tipoBodega: _tipoBodega,
         tipoArticulo: _tipoArticulo,
-        ubicacionBodega: _ubicacionBodegaController.text.trim(),
+        esActivo: _esActivo, // ✅ CORREGIDO: Variable ahora definida
+        descripcion: _descripcionController.text.trim(), // ✅ CORREGIDO: Campo añadido
         imagenPath: imagenUrl,
-        stockMinimo: 0,
+        stockMinimo: int.tryParse(_stockMinimoController.text) ?? 0, // ✅ CORREGIDO: Campo añadido
         etiquetas: '[]',
+        creadoEn: null,
       );
 
       final resultado = await ArticuloService.crearArticulo(nuevoArticulo, token);
       
       if (resultado['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ ${resultado['message']}'), 
-            backgroundColor: Colors.green
-          ),
-        );
+        _mostrarSnackBar('✅ ${resultado['message']}', Colors.green);
         
-        if (widget.onArticuloCreado != null) {
-          widget.onArticuloCreado!();
-        }
+        widget.onArticuloCreado?.call();
       } else {
         _mostrarError(resultado['error'] ?? 'Error al crear el artículo');
       }
@@ -446,9 +407,118 @@ Future<void> _recargarMarcas() async {
     }
   }
 
-  void _mostrarError(String mensaje) {
+  // ✅ OPTIMIZADO: Métodos de utilidad reutilizables
+  void _mostrarSnackBar(String mensaje, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+      SnackBar(content: Text(mensaje), backgroundColor: color),
+    );
+  }
+
+  void _mostrarError(String mensaje) {
+    _mostrarSnackBar(mensaje, Colors.red);
+  }
+
+  // ✅ OPTIMIZADO: Widgets reutilizables para la UI
+  Widget _buildSearchField({
+    required TextEditingController controller,
+    required String label,
+    required VoidCallback onClear,
+    required bool mostrarLista,
+    required List<dynamic> elementosFiltrados,
+    required bool mostrarCrear,
+    required VoidCallback onCrear,
+    required Function(dynamic) onSeleccionar,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Column(
+          children: [
+            TextFormField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Buscar $label...',
+                hintStyle: const TextStyle(color: Color(0xFF6b7280)),
+                filled: true,
+                fillColor: const Color(0xFF2a2f40),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF474554)),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
+                ),
+                suffixIcon: controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white70),
+                        onPressed: onClear,
+                      )
+                    : null,
+              ),
+            ),
+            
+            if (mostrarLista && (elementosFiltrados.isNotEmpty || mostrarCrear)) ...[
+              const SizedBox(height: 8),
+              _buildListaOpciones(
+                elementosFiltrados: elementosFiltrados,
+                mostrarCrear: mostrarCrear,
+                textoCrear: controller.text,
+                onCrear: onCrear,
+                onSeleccionar: onSeleccionar,
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListaOpciones({
+    required List<dynamic> elementosFiltrados,
+    required bool mostrarCrear,
+    required String textoCrear,
+    required VoidCallback onCrear,
+    required Function(dynamic) onSeleccionar,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF2a2f40),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF474554)),
+      ),
+      child: Column(
+        children: [
+          if (mostrarCrear)
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
+              title: Text(
+                'Crear "$textoCrear"',
+                style: const TextStyle(color: Colors.green, fontSize: 14),
+              ),
+              onTap: onCrear,
+            ),
+          
+          ...elementosFiltrados.map((elemento) {
+            return ListTile(
+              title: Text(
+                elemento['nombre'],
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              onTap: () => onSeleccionar(elemento),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -465,15 +535,12 @@ Future<void> _recargarMarcas() async {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con botón atrás - SOLO en escritorio
               if (isDesktop) _buildHeader(),
               if (isDesktop) const SizedBox(height: 20),
               
               Expanded(
                 child: _cargandoCategorias || _cargandoMarcas || _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
-                      )
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFFf59e0b)))
                     : SingleChildScrollView(
                         child: Center(
                           child: ConstrainedBox(
@@ -481,16 +548,13 @@ Future<void> _recargarMarcas() async {
                             child: Card(
                               color: const Color(0xFF1a1f2e).withOpacity(0.9),
                               elevation: 8,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Form(
                                   key: _formKey,
                                   child: Column(
                                     children: [
-                                      // Título dentro del card - SOLO en escritorio
                                       if (isDesktop) ...[
                                         _buildTitle(),
                                         const SizedBox(height: 20),
@@ -506,68 +570,10 @@ Future<void> _recargarMarcas() async {
                                       ),
                                       const SizedBox(height: 24),
                                       
-                                      LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          return Wrap(
-                                            spacing: 16,
-                                            runSpacing: 16,
-                                            children: [
-                                              // Búsqueda de categoría
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildCategoriaSearch(),
-                                              ),
-                                              // Búsqueda de marca
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildMarcaSearch(),
-                                              ),
-                                              // Referencia
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildTextField(
-                                                  controller: _referenciaController,
-                                                  label: 'Referencia *',
-                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
-                                                ),
-                                              ),
-                                              // Ubicación en bodega
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildTextField(
-                                                  controller: _ubicacionBodegaController,
-                                                  label: 'Ubicación en Bodega *',
-                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
-                                                ),
-                                              ),
-                                              // Tipo de artículo
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildDropdown(
-                                                  value: _tipoArticulo,
-                                                  label: 'Tipo de Artículo *',
-                                                  items: _tiposArticulo,
-                                                  onChanged: (v) => setState(() => _tipoArticulo = v!),
-                                                ),
-                                              ),
-                                              // Bodega
-                                              SizedBox(
-                                                width: isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity,
-                                                child: _buildDropdown(
-                                                  value: _tipoBodega,
-                                                  label: 'Bodega *',
-                                                  items: _bodegas.map((b) => {'value': b, 'label': b}).toList(),
-                                                  onChanged: (v) => setState(() => _tipoBodega = v!),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      ),
+                                      _buildFormFields(isDesktop),
                                       const SizedBox(height: 32),
                                       
-                                      // Botones de acción
-                                      _buildActionButtons(),
+                                      _buildActionButtons(isDesktop),
                                     ],
                                   ),
                                 ),
@@ -584,299 +590,148 @@ Future<void> _recargarMarcas() async {
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: widget.onCancelar,
-          tooltip: 'Volver a la lista',
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Crear Artículo',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTitle() {
-    return Row(
-      children: [
-        const Icon(
-          Icons.add_circle_outline,
-          color: Color.fromARGB(255, 43, 131, 8),
-          size: 28,
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Crear Nuevo Artículo',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
-
-    return Row(
-      children: [
-        // Botón cancelar - SOLO en escritorio
-        if (isDesktop) ...[
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: widget.onCancelar,
-              icon: const Icon(Icons.cancel_outlined),
-              label: const Text('Cancelar'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white54),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
+  Widget _buildFormFields(bool isDesktop) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fieldWidth = isDesktop ? constraints.maxWidth / 2 - 20 : double.infinity;
         
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : _crearArticulo,
-            icon: const Icon(Icons.add_circle_outline),
-            label: Text(
-              _isLoading ? 'Creando...' : 'Crear Artículo',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color.fromARGB(255, 43, 131, 8),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoriaSearch() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Categoría *',
-          style: TextStyle(
-            color: Color(0xFFaca9bb),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        Column(
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
           children: [
-            TextFormField(
-              controller: _categoriaSearchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Buscar categoría...',
-                hintStyle: const TextStyle(color: Color(0xFF6b7280)),
-                filled: true,
-                fillColor: const Color(0xFF2a2f40),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF474554)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
-                ),
-                suffixIcon: _categoriaSearchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white70),
-                        onPressed: () {
-                          _categoriaSearchController.clear();
-                          setState(() {
-                            _categoriaId = null;
-                            _mostrarCrearCategoria = false;
-                            _mostrarListaCategorias = false;
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (value) {
-                _filtrarCategorias();
-              },
-            ),
+            // Búsqueda de categoría
+            SizedBox(width: fieldWidth, child: _buildCategoriaSearch()),
+            // Búsqueda de marca
+            SizedBox(width: fieldWidth, child: _buildMarcaSearch()),
+            // Referencia
+            SizedBox(width: fieldWidth, child: _buildReferenciaField()),
             
-            const SizedBox(height: 8),
-            
-            // Solo mostrar lista si hay búsqueda activa
-            if (_mostrarListaCategorias && (_categoriasFiltradas.isNotEmpty || _mostrarCrearCategoria))
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2a2f40),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF474554)),
-                ),
-                child: Column(
-                  children: [
-                    // Opción de crear nueva categoría
-                    if (_mostrarCrearCategoria)
-                      ListTile(
-                        leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
-                        title: Text(
-                          'Crear "${_categoriaSearchController.text}"',
-                          style: const TextStyle(color: Colors.green, fontSize: 14),
-                        ),
-                        onTap: _crearNuevaCategoria,
-                      ),
-                    
-                    // Lista de categorías filtradas
-                    ..._categoriasFiltradas.map((categoria) {
-                      return ListTile(
-                        title: Text(
-                          categoria['nombre'],
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _categoriaId = categoria['id'] as int;
-                            _categoriaSearchController.text = categoria['nombre'];
-                            _mostrarCrearCategoria = false;
-                            _mostrarListaCategorias = false;
-                          });
-                        },
-                      );
-                    }),
-                  ],
-                ),
-              ),
+            // Stock mínimo ✅ CORREGIDO: Campo añadido
+            SizedBox(width: fieldWidth, child: _buildStockMinimoField()),
+            // Tipo de artículo
+            SizedBox(width: fieldWidth, child: _buildTipoArticuloDropdown()),
+            // Bodega
+            SizedBox(width: fieldWidth, child: _buildBodegaDropdown()),
+            // Descripción ✅ CORREGIDO: Campo añadido
+            SizedBox(width: fieldWidth, child: _buildDescripcionField()),
           ],
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  // ✅ OPTIMIZADO: Widgets específicos para cada campo
+  Widget _buildCategoriaSearch() {
+    return _buildSearchField(
+      controller: _categoriaSearchController,
+      label: 'Categoría *',
+      onClear: () {
+        _categoriaSearchController.clear();
+        setState(() {
+          _categoriaId = null;
+          _mostrarCrearCategoria = false;
+          _mostrarListaCategorias = false;
+        });
+      },
+      mostrarLista: _mostrarListaCategorias,
+      elementosFiltrados: _categoriasFiltradas,
+      mostrarCrear: _mostrarCrearCategoria,
+      onCrear: _crearNuevaCategoria,
+      onSeleccionar: (categoria) {
+        setState(() {
+          _categoriaId = categoria['id'] as int;
+          _categoriaSearchController.text = categoria['nombre'];
+          _mostrarCrearCategoria = false;
+          _mostrarListaCategorias = false;
+        });
+      },
     );
   }
 
   Widget _buildMarcaSearch() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Marca *',
-          style: TextStyle(
-            color: Color(0xFFaca9bb),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        Column(
-          children: [
-            TextFormField(
-              controller: _marcaSearchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Buscar marca...',
-                hintStyle: const TextStyle(color: Color(0xFF6b7280)),
-                filled: true,
-                fillColor: const Color(0xFF2a2f40),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF474554)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFF0948d6), width: 2),
-                ),
-                suffixIcon: _marcaSearchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white70),
-                        onPressed: () {
-                          _marcaSearchController.clear();
-                          setState(() {
-                            _marcaId = null;
-                            _mostrarCrearMarca = false;
-                            _mostrarListaMarcas = false;
-                          });
-                        },
-                      )
-                    : null,
-            ),
-            onChanged: (value) {
-              _filtrarMarcas();
-            },
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Solo mostrar lista si hay búsqueda activa
-          if (_mostrarListaMarcas && (_marcasFiltradas.isNotEmpty || _mostrarCrearMarca))
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF2a2f40),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF474554)),
-              ),
-              child: Column(
-                children: [
-                  // Opción de crear nueva marca
-                  if (_mostrarCrearMarca)
-                    ListTile(
-                      leading: const Icon(Icons.add_circle_outline, color: Colors.green, size: 20),
-                      title: Text(
-                        'Crear "${_marcaSearchController.text}"',
-                        style: const TextStyle(color: Colors.green, fontSize: 14),
-                      ),
-                      onTap: _crearNuevaMarca,
-                    ),
-                  
-                  // Lista de marcas filtradas
-                  ..._marcasFiltradas.map((marca) {
-                    final marcaId = marca['id'];
-                    
-                    // Verificar que el ID no sea null y sea válido
-                    if (marcaId == null) {
-                      print("❌ Marca sin ID: ${marca['nombre']}");
-                      return const SizedBox.shrink(); // Omitir marcas sin ID
-                    }
-                    
-                    return ListTile(
-                      title: Text(
-                        marca['nombre'] ?? 'Sin nombre',
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                      onTap: () {
-                        setState(() {
-                          _marcaId = marcaId is int ? marcaId : int.tryParse(marcaId.toString());
-                          _marcaSearchController.text = marca['nombre'] ?? '';
-                          _mostrarCrearMarca = false;
-                          _mostrarListaMarcas = false;
-                        });
-                        print("✅ Marca seleccionada: ${marca['nombre']} (ID: $_marcaId)");
-                      },
-                    );
-                  }),
-                ],
-              ),
-            ),
-  ], // ← CIERRE del Column children
-      ), // ← CIERRE del Column exterior
-    ], // ← CIERRE del Column principal children
-  ); // ← CIERRE del return Column
+    return _buildSearchField(
+      controller: _marcaSearchController,
+      label: 'Marca *',
+      onClear: () {
+        _marcaSearchController.clear();
+        setState(() {
+          _marcaId = null;
+          _mostrarCrearMarca = false;
+          _mostrarListaMarcas = false;
+        });
+      },
+      mostrarLista: _mostrarListaMarcas,
+      elementosFiltrados: _marcasFiltradas,
+      mostrarCrear: _mostrarCrearMarca,
+      onCrear: _crearNuevaMarca,
+      onSeleccionar: (marca) {
+        final marcaId = marca['id'];
+        if (marcaId != null) {
+          setState(() {
+            _marcaId = marcaId is int ? marcaId : int.tryParse(marcaId.toString());
+            _marcaSearchController.text = marca['nombre'] ?? '';
+            _mostrarCrearMarca = false;
+            _mostrarListaMarcas = false;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildReferenciaField() => _buildTextField(
+    controller: _referenciaController,
+    label: 'Referencia *',
+    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+  );
+
+  Widget _buildDescripcionField() => _buildTextField(
+    controller: _descripcionController,
+    label: 'Descripción *',
+    maxLines: 3,
+    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+  );
+
+  Widget _buildStockMinimoField() => _buildTextField(
+    controller: _stockMinimoController,
+    label: 'Stock Mínimo',
+    keyboardType: TextInputType.number,
+    validator: (v) {
+      if (v == null || v.isEmpty) return null;
+      final value = int.tryParse(v);
+      if (value == null || value < 0) return 'Ingrese un número válido';
+      return null;
+    },
+  );
+
+  Widget _buildTipoArticuloDropdown() {
+  return _buildDropdown(
+    value: _tipoArticulo,
+    label: 'Tipo de Artículo *',
+    items: _tiposArticulo,
+    onChanged: (v) {
+      setState(() {
+        _tipoArticulo = v!;
+
+        // Lógica para definir _esActivo según el tipo de artículo
+        if (_tipoArticulo == "Activo Fijo") {
+          _esActivo = true;
+        } else if (_tipoArticulo == "Activo de Control") {
+          _esActivo = true;
+        } else {
+          _esActivo = false;
+        }
+      });
+    },
+  );
 }
+
+  Widget _buildBodegaDropdown() => _buildDropdown(
+    value: _tipoBodega,
+    label: 'Bodega *',
+    items: _bodegas.map((b) => {'value': b, 'label': b}).toList(),
+    onChanged: (v) => setState(() => _tipoBodega = v!),
+  );
+
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -939,7 +794,7 @@ Future<void> _recargarMarcas() async {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: value,
+          value: value,
           dropdownColor: const Color(0xFF2d3748),
           style: const TextStyle(color: Colors.white),
           onChanged: onChanged,
@@ -959,6 +814,82 @@ Future<void> _recargarMarcas() async {
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           validator: (value) => value == null ? 'Campo requerido' : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: widget.onCancelar,
+          tooltip: 'Volver a la lista',
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Crear Artículo',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTitle() {
+    return Row(
+      children: [
+        const Icon(Icons.add_circle_outline, color: Color.fromARGB(255, 43, 131, 8), size: 28),
+        const SizedBox(width: 12),
+        Text(
+          'Crear Nuevo Artículo',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(bool isDesktop) {
+    return Row(
+      children: [
+        if (isDesktop) ...[
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: widget.onCancelar,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancelar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
+        
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _isLoading ? null : _crearArticulo,
+            icon: const Icon(Icons.add_circle_outline),
+            label: Text(
+              _isLoading ? 'Creando...' : 'Crear Artículo',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 43, 131, 8),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
         ),
       ],
     );

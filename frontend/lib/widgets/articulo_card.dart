@@ -28,7 +28,6 @@ class ArticuloCard extends StatelessWidget {
     final isMobile = screenWidth < 750;
     final isDesktopZoom = isZoomMode && !isMobile;
 
-    // Contenedor con animación de escala al seleccionarse
     return GestureDetector(
       onTap: onSelect,
       child: AnimatedContainer(
@@ -42,18 +41,15 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Construye la tarjeta en formato horizontal (solo para zoom en escritorio)
+  /// Tarjeta horizontal (modo zoom escritorio)
   Widget _buildHorizontalCard(BuildContext context, bool isMobile) {
-    const baseFontSize = 16.0;
+    const baseFontSize = 20.0;
 
     return Container(
       decoration: _buildCardDecoration(),
       child: Row(
         children: [
-          Expanded(
-            flex: 6,
-            child: _buildImageSection(context, horizontal: true),
-          ),
+          Expanded(flex: 6, child: _buildImageSection(context, horizontal: true)),
           Expanded(
             flex: 4,
             child: Padding(
@@ -62,7 +58,6 @@ class ArticuloCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Nombre de categoría
                   Text(
                     articulo.categoriaNombre,
                     maxLines: 1,
@@ -73,7 +68,6 @@ class ArticuloCard extends StatelessWidget {
                       fontSize: baseFontSize + 6,
                     ),
                   ),
-                  // Marca y referencia
                   Text(
                     '${articulo.marcaNombre} - ${articulo.referencia}',
                     maxLines: 1,
@@ -84,13 +78,13 @@ class ArticuloCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Datos del artículo
-                  _horizontalInfoRow(Icons.location_on, 'Ubicación:', articulo.ubicacionBodega, baseFontSize + 3),
-                  _horizontalInfoRow(Icons.qr_code, 'Referencia:', articulo.referencia, baseFontSize + 3),
+
+                //  _horizontalInfoRow(Icons.qr_code, 'Referencia:', articulo.referencia, baseFontSize + 3),
                   _horizontalInfoRow(Icons.category, 'Tipo Artículo:', articulo.tipoArticulo, baseFontSize + 3),
                   _horizontalInfoRow(Icons.warehouse, 'Tipo Bodega:', articulo.tipoBodega, baseFontSize + 3),
+                  _horizontalInfoRow(Icons.description, 'Descripción:', articulo.descripcion, baseFontSize + 3),
                   const SizedBox(height: 8),
-                  // Etiquetas si existen
+
                   if (articulo.etiquetas != null)
                     Expanded(
                       child: Column(
@@ -126,10 +120,10 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Construye la tarjeta en formato vertical (modo estándar o móvil)
+  /// Tarjeta vertical (móvil o modo normal)
   Widget _buildVerticalCard(BuildContext context, bool isMobile) {
     final baseFontSize = isZoomMode
-        ? (isMobile ? 18.0 : 35.0)
+        ? (isMobile ? 16.0 : 30.0)
         : (isMobile ? 10.0 : 16.0);
 
     return Container(
@@ -167,11 +161,15 @@ class ArticuloCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  _infoRow(Icons.location_on, 'Ubicación: ${articulo.ubicacionBodega}', baseFontSize),
-                  _infoRow(Icons.qr_code, 'Referencia: ${articulo.referencia}', baseFontSize),
+
+                //  _infoRow(Icons.qr_code, 'Referencia: ${articulo.referencia}', baseFontSize),
                   _infoRow(Icons.category, 'Tipo Artículo: ${articulo.tipoArticulo}', baseFontSize),
                   _infoRow(Icons.warehouse, 'Tipo Bodega: ${articulo.tipoBodega}', baseFontSize),
+                  _infoRow(Icons.description, 'Descripción: ${articulo.descripcion}', baseFontSize),
+                
+
                   const SizedBox(height: 4),
+
                   if (articulo.etiquetas != null)
                     Expanded(
                       child: SingleChildScrollView(
@@ -191,7 +189,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Estilo decorativo del contenedor de la tarjeta
   BoxDecoration _buildCardDecoration() {
     return BoxDecoration(
       gradient: const LinearGradient(
@@ -210,12 +207,10 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Construye la sección de imagen del artículo
   Widget _buildImageSection(BuildContext context, {bool horizontal = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Imagen del artículo
         ClipRRect(
           borderRadius: horizontal
               ? const BorderRadius.horizontal(left: Radius.circular(16))
@@ -230,8 +225,6 @@ class ArticuloCard extends StatelessWidget {
             },
           ),
         ),
-
-        // Sombra oscura si está seleccionado o en zoom
         if (isZoomMode || isSelected)
           Container(
             decoration: BoxDecoration(
@@ -241,8 +234,6 @@ class ArticuloCard extends StatelessWidget {
                   : const BorderRadius.vertical(top: Radius.circular(16)),
             ),
           ),
-
-        // Tipo de artículo en esquina superior izquierda
         Positioned(
           top: 12,
           left: 12,
@@ -261,8 +252,6 @@ class ArticuloCard extends StatelessWidget {
             ),
           ),
         ),
-
-        // Botones de acción (editar/eliminar)
         if (isZoomMode)
           Positioned(
             top: 12,
@@ -273,7 +262,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Construye los botones de edición y eliminación (solo modo zoom)
   Widget _buildZoomButtons(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -301,7 +289,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Imagen por defecto cuando no carga
   Widget _buildPlaceholder() {
     return Container(
       color: const Color(0xFF2a2f40),
@@ -311,7 +298,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Construye la URL de la imagen según la ruta proporcionada
   String _buildImageUrl(String path) {
     if (path.isEmpty) return "";
     if (path.startsWith('http')) return path;
@@ -319,7 +305,6 @@ class ArticuloCard extends StatelessWidget {
     return '${AppConfig.imagesUrl}/$path';
   }
 
-  /// Devuelve color representativo del tipo de artículo
   Color _getColorPorTipo(String tipo) {
     switch (tipo) {
       case 'Activo Fijo':
@@ -333,7 +318,6 @@ class ArticuloCard extends StatelessWidget {
     }
   }
 
-  /// Devuelve texto mostrado para el tipo de artículo
   String _getTipoDisplay(String tipo) {
     switch (tipo) {
       case 'Activo Fijo':
@@ -347,7 +331,6 @@ class ArticuloCard extends StatelessWidget {
     }
   }
 
-  /// Construye chips de etiquetas
   List<Widget> _buildEtiquetasChips(String etiquetasStr, double fontSize) {
     final etiquetas = etiquetasStr
         .replaceAll('[', '')
@@ -373,7 +356,6 @@ class ArticuloCard extends StatelessWidget {
     }).toList();
   }
 
-  /// Fila con ícono + texto (formato compacto)
   Widget _infoRow(IconData icon, String text, double fontSize) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -393,7 +375,6 @@ class ArticuloCard extends StatelessWidget {
     );
   }
 
-  /// Fila con ícono, etiqueta y valor (solo para tarjeta horizontal)
   Widget _horizontalInfoRow(IconData icon, String label, String value, double fontSize) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),

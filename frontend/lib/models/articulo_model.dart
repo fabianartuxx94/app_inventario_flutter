@@ -9,11 +9,12 @@ class Articulo {
   final String referencia;
   final String tipoBodega;
   final String tipoArticulo;
-  final String ubicacionBodega;
+  final bool esActivo; // nuevo
+  final String descripcion; // nuevo
   final String? imagenPath;
   final String? creadoEn;
   final int stockMinimo;
-  final String? etiquetas; // ✅ Cambiado a lista
+  final String? etiquetas;
 
   Articulo({
     this.articuloId,
@@ -24,7 +25,8 @@ class Articulo {
     required this.referencia,
     required this.tipoBodega,
     required this.tipoArticulo,
-    required this.ubicacionBodega,
+    required this.esActivo,
+    required this.descripcion,
     this.imagenPath,
     this.creadoEn,
     required this.stockMinimo,
@@ -41,7 +43,8 @@ class Articulo {
       referencia: json['referencia'] ?? '',
       tipoBodega: json['tipo_bodega'] ?? 'Sistemas',
       tipoArticulo: json['tipo_articulo'] ?? 'Activo Fijo',
-      ubicacionBodega: json['ubicacion_bodega'] ?? '',
+      esActivo: (json['es_activo'] is int) ? (json['es_activo'] == 1) : (json['es_activo'] ?? false),
+      descripcion: json['descripcion'] ?? '',
       imagenPath: json['imagen_path'],
       creadoEn: json['creado_en'],
       stockMinimo: json['stock_minimo'] ?? 0,
@@ -57,12 +60,16 @@ class Articulo {
       'referencia': referencia,
       'tipo_bodega': tipoBodega,
       'tipo_articulo': tipoArticulo,
-      'ubicacion_bodega': ubicacionBodega,
+      'es_activo': esActivo ? 1 : 0, // enviar como entero
+      'descripcion': descripcion,
       'imagen_path': imagenPath,
       'stock_minimo': stockMinimo,
       if (etiquetas != null) 'etiquetas': etiquetas,
     };
   }
+
+  // Getter ejemplo para mostrar descripción
+  String get descripcionCorta => descripcion.length > 50 ? '${descripcion.substring(0, 50)}...' : descripcion;
 
   /// ✅ Getter para imagen completa usando AppConfig
   String get imagenCompletaUrl {

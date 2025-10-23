@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
-
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/image_uploader.dart';
 import '../../widgets/custom_background.dart';
 import '../../providers/auth_provider.dart';
-import '../../config/config.dart'; // ✅ Importa la configuración con la IP real
+import '../../config/config.dart';
 
 class EditarArticuloScreen extends StatefulWidget {
   final Articulo articulo;
@@ -29,11 +27,12 @@ class EditarArticuloScreen extends StatefulWidget {
 class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
   final _formKey = GlobalKey<FormState>();
   final _referenciaController = TextEditingController();
-  final _ubicacionBodegaController = TextEditingController();
+  final _descripcionController = TextEditingController();
 
   String _tipoBodega = 'Sistemas';
   String _tipoArticulo = 'Activo Fijo';
   dynamic _nuevaImagenSeleccionada;
+  bool _esActivo = true;
   bool _isLoading = false;
 
   @override
@@ -44,9 +43,10 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
 
   void _cargarDatosArticulo() {
     _referenciaController.text = widget.articulo.referencia;
-    _ubicacionBodegaController.text = widget.articulo.ubicacionBodega;
+    _descripcionController.text = widget.articulo.descripcion;
     _tipoBodega = widget.articulo.tipoBodega;
     _tipoArticulo = widget.articulo.tipoArticulo;
+    _esActivo = widget.articulo.esActivo;
   }
 
   Future<void> _actualizarArticulo() async {
@@ -58,17 +58,18 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       String? nuevaImagenUrl;
 
       if (_nuevaImagenSeleccionada != null) {
-  final uploadResult = await UploadService.uploadImage(
-    _nuevaImagenSeleccionada, // ✅ Ahora envía los datos correctos
-    token,
-    nombreArticulo: widget.articulo.categoriaNombre,
-    marca: widget.articulo.marcaNombre,
-    referencia: _referenciaController.text.trim(),
-  );
-  if (uploadResult['success']) {
-    nuevaImagenUrl = uploadResult['imageUrl'];
-  }
-}
+        final uploadResult = await UploadService.uploadImage(
+          _nuevaImagenSeleccionada,
+          token,
+          nombreArticulo: widget.articulo.categoriaNombre,
+          marca: widget.articulo.marcaNombre,
+          referencia: _referenciaController.text.trim(),
+        );
+
+        if (uploadResult['success']) {
+          nuevaImagenUrl = uploadResult['imageUrl'];
+        }
+      }
 
       final articuloActualizado = Articulo(
         articuloId: widget.articulo.articuloId,
@@ -79,10 +80,11 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         referencia: _referenciaController.text.trim(),
         tipoBodega: _tipoBodega,
         tipoArticulo: _tipoArticulo,
-        ubicacionBodega: _ubicacionBodegaController.text.trim(),
+        descripcion: _descripcionController.text.trim(),
         imagenPath: nuevaImagenUrl ?? widget.articulo.imagenPath,
         stockMinimo: widget.articulo.stockMinimo,
         etiquetas: widget.articulo.etiquetas,
+        esActivo: _esActivo, // ✅ nuevo campo
       );
 
       final resultado = await ArticuloService.actualizarArticulo(articuloActualizado, token);
@@ -116,20 +118,10 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     );
   }
 
-  /// ✅ Esta función ahora construye bien la URL de imagen usando AppConfig
   String _buildImageUrl(String imagenPath) {
-    if (imagenPath.isEmpty) {
-      return '';
-    }
-
-    if (imagenPath.startsWith('http')) {
-      return imagenPath;
-    }
-
-    if (imagenPath.startsWith('/uploads')) {
-      return '${AppConfig.baseUrl}$imagenPath';
-    }
-
+    if (imagenPath.isEmpty) return '';
+    if (imagenPath.startsWith('http')) return imagenPath;
+    if (imagenPath.startsWith('/uploads')) return '${AppConfig.baseUrl}$imagenPath';
     return '${AppConfig.imagesUrl}/$imagenPath';
   }
 
@@ -140,21 +132,16 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     return Stack(
       children: [
         const CustomBackground(),
-        
         Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con botón de volver - SOLO en escritorio
               if (!isMobile) _buildHeader(),
               if (!isMobile) const SizedBox(height: 20),
-              
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: Color(0xFFf59e0b)),
-                      )
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFFf59e0b)))
                     : SingleChildScrollView(
                         child: Center(
                           child: ConstrainedBox(
@@ -162,19 +149,15 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                             child: Card(
                               color: const Color(0xFF1a1f2e).withOpacity(0.9),
                               elevation: 8,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Form(
                                   key: _formKey,
                                   child: Column(
                                     children: [
-                                      // Información del artículo
                                       _buildInfoArticulo(),
                                       const SizedBox(height: 20),
-                                      
                                       ImageUploader(
                                         onImageSelected: (imageData) {
                                           setState(() {
@@ -187,14 +170,12 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                         referencia: _referenciaController.text,
                                       ),
                                       const SizedBox(height: 24),
-                                      
                                       LayoutBuilder(
                                         builder: (context, constraints) {
                                           return Wrap(
                                             spacing: 16,
                                             runSpacing: 16,
                                             children: [
-                                              // Referencia
                                               SizedBox(
                                                 width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildTextField(
@@ -203,30 +184,31 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                                   validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                                                 ),
                                               ),
-                                              // Ubicación en bodega
-                                              SizedBox(
-                                                width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
-                                                child: _buildTextField(
-                                                  controller: _ubicacionBodegaController,
-                                                  label: 'Ubicación en Bodega *',
-                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
-                                                ),
-                                              ),
-                                              // Tipo de artículo
+                                                                                            
                                               SizedBox(
                                                 width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildDropdown(
-                                                  value: _tipoArticulo,
-                                                  label: 'Tipo de Artículo *',
-                                                  items: [
-                                                    {'value': 'Activo Fijo', 'label': 'Activo Fijo'},
-                                                    {'value': 'Activo de Control', 'label': 'Activo de Control'},
-                                                    {'value': 'Consumible', 'label': 'Consumible'},
-                                                  ],
-                                                  onChanged: (v) => setState(() => _tipoArticulo = v!),
-                                                ),
+  value: _tipoArticulo,
+  label: 'Tipo de Artículo *',
+  items: [
+    {'value': 'Activo Fijo', 'label': 'Activo Fijo'},
+    {'value': 'Activo de Control', 'label': 'Activo de Control'},
+    {'value': 'Consumible', 'label': 'Consumible'},
+  ],
+  onChanged: (v) {
+    setState(() {
+      _tipoArticulo = v!;
+
+      // Lógica para establecer _esActivo
+      if (_tipoArticulo == "Activo Fijo" || _tipoArticulo == "Activo de Control") {
+        _esActivo = true;
+      } else {
+        _esActivo = false;
+      }
+    });
+  },
+),
                                               ),
-                                              // Bodega
                                               SizedBox(
                                                 width: isMobile ? double.infinity : constraints.maxWidth / 2 - 20,
                                                 child: _buildDropdown(
@@ -236,13 +218,22 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
                                                   onChanged: (v) => setState(() => _tipoBodega = v!),
                                                 ),
                                               ),
+                                              SizedBox(
+                                                width: isMobile ? double.infinity : constraints.maxWidth,
+                                                child: _buildTextField(
+                                                  controller: _descripcionController,
+                                                  label: 'Descripción *',
+                                                  maxLines: 3,
+                                                  validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
+                                                ),
+                                              ),
+                                              // ✅ Checkbox para es_articulo
+                                             
                                             ],
                                           );
                                         },
                                       ),
                                       const SizedBox(height: 32),
-                                      
-                                      // Botón de actualizar
                                       SizedBox(
                                         width: double.infinity,
                                         height: 50,
@@ -334,6 +325,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
       ),
     );
   }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -376,81 +368,56 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
     );
   }
 
-Widget _buildDropdown({
-  required String value,
-  required List<Map<String, String>> items,
-  required String label,
-  required Function(String?) onChanged,
-}) {
-  // ✅ VERIFICAR que el valor actual existe en la lista
-  final validItems = items.where((item) => item['value'] != null).toList();
-  final validValues = validItems.map((item) => item['value']!).toList();
-  
-  String currentValue = value;
-  
-  // Si el valor actual no está en la lista, usar el primero disponible
-  if (!validValues.contains(value)) {
-    currentValue = validValues.isNotEmpty ? validValues.first : '';
-    print('⚠️ Valor "$value" no encontrado en la lista. Usando: "$currentValue"');
-  }
+  Widget _buildDropdown({
+    required String value,
+    required List<Map<String, String>> items,
+    required String label,
+    required Function(String?) onChanged,
+  }) {
+    final validItems = items.where((item) => item['value'] != null).toList();
+    final validValues = validItems.map((item) => item['value']!).toList();
+    String currentValue = value;
 
-  // Verificar duplicados
-  final duplicates = _findDuplicateValues(validValues);
-  if (duplicates.isNotEmpty) {
-    print('❌ VALORES DUPLICADOS EN DROPDOWN: $duplicates');
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFFaca9bb),
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      const SizedBox(height: 8),
-      DropdownButtonFormField<String>(
-        value: currentValue, // ✅ Ahora siempre es un valor válido
-        dropdownColor: const Color(0xFF2d3748),
-        style: const TextStyle(color: Colors.white),
-        onChanged: onChanged,
-        items: validItems.map((item) {
-          return DropdownMenuItem<String>(
-            value: item['value']!,
-            child: Text(item['label']!),
-          );
-        }).toList(),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFF2a2f40),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF474554)),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-        validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
-      ),
-    ],
-  );
-}
-
-// Método auxiliar para encontrar duplicados
-List<String> _findDuplicateValues(List<String> values) {
-  final duplicates = <String>[];
-  final seen = <String>{};
-  
-  for (final value in values) {
-    if (seen.contains(value)) {
-      duplicates.add(value);
-    } else {
-      seen.add(value);
+    if (!validValues.contains(value)) {
+      currentValue = validValues.isNotEmpty ? validValues.first : '';
+      print('⚠️ Valor "$value" no encontrado. Usando "$currentValue"');
     }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFaca9bb),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: currentValue,
+          dropdownColor: const Color(0xFF2d3748),
+          style: const TextStyle(color: Colors.white),
+          onChanged: onChanged,
+          items: validItems.map((item) {
+            return DropdownMenuItem<String>(
+              value: item['value']!,
+              child: Text(item['label']!),
+            );
+          }).toList(),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF2a2f40),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF474554)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
+        ),
+      ],
+    );
   }
-  
-  return duplicates;
-}
 }

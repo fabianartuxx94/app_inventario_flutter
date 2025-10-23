@@ -10,12 +10,14 @@ class User {
   final String username;
   final String nombreCompleto;
   final String rol;
+  final dynamic bodega; // Puede ser String o List según el backend
 
   User({
     required this.id,
     required this.username,
     required this.nombreCompleto,
     required this.rol,
+    this.bodega,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class User {
       username: json['username'] ?? '',
       nombreCompleto: json['nombreCompleto'] ?? json['nombre_completo'] ?? 'Usuario',
       rol: json['rol'] ?? 'usuario',
+      bodega: json['bodega'], // Puede venir null o lista
     );
   }
 
@@ -33,12 +36,13 @@ class User {
       'username': username,
       'nombreCompleto': nombreCompleto,
       'rol': rol,
+      'bodega': bodega,
     };
   }
 
   @override
   String toString() {
-    return 'User{id: $id, username: $username, nombreCompleto: $nombreCompleto, rol: $rol}';
+    return 'User{id: $id, username: $username, rol: $rol, bodega: $bodega}';
   }
 
   String get displayName {
@@ -59,24 +63,29 @@ class AuthProvider with ChangeNotifier {
   String? get token => _token;
   User? get user => _user;
   String get userRol => _user?.rol ?? 'usuario';
+  dynamic get userBodega => _user?.bodega;
   bool get isAdmin => userRol == 'administrador';
-  bool get isTecnico => userRol == 'tecnico';
   bool get isBodega => userRol == 'bodega';
   bool get isUsuario => userRol == 'usuario';
+  bool get isTecnico => userRol == 'tecnico';
   bool get isAuthenticated => _token != null && _user != null;
+
+  bool get isPrincipalBodega =>
+      (userBodega is List && (userBodega as List).contains('principal')) ||
+      (userBodega == 'principal');
 
   void printDebugInfo() {
     print('🔐 AuthProvider Debug:');
     print('   Token: ${_token != null ? "✅ Presente" : "❌ Ausente"}');
     print('   User: $_user');
-    print('   User Rol: $userRol');
-    print('   Is Authenticated: $isAuthenticated');
+    print('   Rol: $userRol');
+    print('   Bodega: $userBodega');
   }
 
   void resetInactivityTimer() {
     _inactivityTimer?.cancel();
     _inactivityTimer = null;
-    
+
     if (_token != null && isTokenValid) {
       _inactivityTimer = Timer(_inactivityTimeout, _onInactivityTimeout);
     }
@@ -84,7 +93,7 @@ class AuthProvider with ChangeNotifier {
 
   void _onInactivityTimeout() {
     logout();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final context = navigatorKey.currentContext;
       if (context != null) {
@@ -93,7 +102,7 @@ class AuthProvider with ChangeNotifier {
           MaterialPageRoute(builder: (_) => const LoginPage()),
           (route) => false,
         );
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Sesión cerrada por inactividad'),
@@ -107,13 +116,13 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> login(String token, Map<String, dynamic> userData) async {
     print('🚀 Login called with userData: $userData');
-    
+
     _token = token;
-    
+
     try {
       _user = User.fromJson(userData);
       print('✅ User created from login data: $_user');
-      
+
       final parts = token.split('.');
       if (parts.length == 3) {
         final payload = json.decode(utf8.decode(base64Url.decode(parts[1])));
@@ -130,19 +139,16 @@ class AuthProvider with ChangeNotifier {
     await prefs.setString('token', token);
     await prefs.setString('tokenExpiry', _tokenExpiry!.toIso8601String());
     await prefs.setString('userData', json.encode(_user!.toJson()));
-    
-    print('💾 Saved to SharedPreferences:');
-    print('   - UserData: ${_user!.toJson()}');
+
+    print('💾 Saved to SharedPreferences: ${_user!.toJson()}');
 
     resetInactivityTimer();
     notifyListeners();
-    
+
     printDebugInfo();
   }
 
   Future<void> logout() async {
-    print('🚪 Logging out...');
-    
     _inactivityTimer?.cancel();
     _inactivityTimer = null;
     _token = null;
@@ -155,7 +161,6 @@ class AuthProvider with ChangeNotifier {
     await prefs.remove('userData');
 
     notifyListeners();
-    print('✅ Logout completed');
   }
 
   Future<void> logoutWithNavigation(BuildContext context) async {
@@ -174,17 +179,10 @@ class AuthProvider with ChangeNotifier {
 
   Future<bool> loadStoredToken() async {
     try {
-     // print('🔄 Loading stored token...');
-      
       final prefs = await SharedPreferences.getInstance();
       final storedToken = prefs.getString('token');
       final storedExpiry = prefs.getString('tokenExpiry');
       final storedUserData = prefs.getString('userData');
-
-     /* print('📦 Stored data:');
-      print('   - Token: ${storedToken != null ? "✅ Presente" : "❌ Ausente"}');
-      print('   - Expiry: $storedExpiry');
-      print('   - UserData: $storedUserData');*/
 
       if (storedToken != null && storedExpiry != null && storedUserData != null) {
         final expiryDate = DateTime.parse(storedExpiry);
@@ -192,29 +190,19 @@ class AuthProvider with ChangeNotifier {
         if (expiryDate.isAfter(DateTime.now())) {
           _token = storedToken;
           _tokenExpiry = expiryDate;
-          
-          try {
-            final userMap = json.decode(storedUserData);
-            _user = User.fromJson(userMap);
-            //print('✅ User loaded from storage: $_user');
-          } catch (e) {
-            print('❌ Error parsing stored user data: $e');
-            await logout();
-            return false;
-          }
-          
+
+          final userMap = json.decode(storedUserData);
+          _user = User.fromJson(userMap);
+
           resetInactivityTimer();
           notifyListeners();
-          
           printDebugInfo();
           return true;
         } else {
-          print('❌ Token expired');
           await logout();
           return false;
         }
       } else {
-        print('❌ No stored data found');
         await logout();
         return false;
       }
@@ -228,7 +216,7 @@ class AuthProvider with ChangeNotifier {
   Map<String, String> get authHeaders {
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      if (_token != null) 'Authorization': 'Bearer $_token',
     };
   }
 

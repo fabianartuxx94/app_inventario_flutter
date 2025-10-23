@@ -3,7 +3,6 @@ import 'package:frontend/widgets/usuarios_dialog.dart';
 import '../../models/usuario_model.dart';
 import '../../services/usuarios_service.dart';
 
-
 class UsuariosScreen extends StatefulWidget {
   const UsuariosScreen({super.key});
 
@@ -16,6 +15,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   bool _loading = true;
   String _searchQuery = '';
   String? _errorMessage;
+  Usuario? _usuarioSeleccionado; // Para controlar la selección en móvil
 
   @override
   void initState() {
@@ -23,53 +23,54 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     _cargarUsuarios();
   }
 
- Future<void> _cargarUsuarios() async {
-  setState(() {
-    _loading = true;
-    _errorMessage = null;
-  });
-  
-  try {
-    print('🔄 INICIANDO CARGA DE USUARIOS...');
-    final usuariosData = await UsuariosService.getUsuarios(context);
-    
-    print('📦 DATOS RECIBIDOS: $usuariosData');
-    print('📦 TIPO DE DATOS: ${usuariosData.runtimeType}');
-    
-    if (usuariosData != null) {
-      final List<Usuario> usuariosConvertidos = [];
-      
-      for (var data in usuariosData) {
-        try {
-          print('🔍 Procesando usuario: $data');
-          final usuario = Usuario.fromJson(data);
-          usuariosConvertidos.add(usuario);
-          print('✅ Usuario convertido: ${usuario.username}');
-        } catch (e) {
-          print('❌ Error convirtiendo usuario: $e');
-          print('❌ Datos problemáticos: $data');
-        }
-      }
-      
-      print('📊 TOTAL USUARIOS CONVERTIDOS: ${usuariosConvertidos.length}');
-      
-      setState(() {
-        _usuarios = usuariosConvertidos;
-      });
-    } else {
-      setState(() {
-        _errorMessage = 'No se pudieron cargar los usuarios desde el servidor';
-      });
-    }
-  } catch (e) {
-    print('❌ ERROR EN _cargarUsuarios: $e');
+  Future<void> _cargarUsuarios() async {
     setState(() {
-      _errorMessage = 'Error al cargar usuarios: ${e.toString()}';
+      _loading = true;
+      _errorMessage = null;
+      _usuarioSeleccionado = null; // Resetear selección al recargar
     });
-  } finally {
-    setState(() => _loading = false);
-  }
-} 
+    
+    try {
+      print('🔄 INICIANDO CARGA DE USUARIOS...');
+      final usuariosData = await UsuariosService.getUsuarios(context);
+      
+      print('📦 DATOS RECIBIDOS: $usuariosData');
+      print('📦 TIPO DE DATOS: ${usuariosData.runtimeType}');
+      
+      if (usuariosData != null) {
+        final List<Usuario> usuariosConvertidos = [];
+        
+        for (var data in usuariosData) {
+          try {
+            print('🔍 Procesando usuario: $data');
+            final usuario = Usuario.fromJson(data);
+            usuariosConvertidos.add(usuario);
+            print('✅ Usuario convertido: ${usuario.username}');
+          } catch (e) {
+            print('❌ Error convirtiendo usuario: $e');
+            print('❌ Datos problemáticos: $data');
+          }
+        }
+        
+        print('📊 TOTAL USUARIOS CONVERTIDOS: ${usuariosConvertidos.length}');
+        
+        setState(() {
+          _usuarios = usuariosConvertidos;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'No se pudieron cargar los usuarios desde el servidor';
+        });
+      }
+    } catch (e) {
+      print('❌ ERROR EN _cargarUsuarios: $e');
+      setState(() {
+        _errorMessage = 'Error al cargar usuarios: ${e.toString()}';
+      });
+    } finally {
+      setState(() => _loading = false);
+    }
+  } 
 
   void _navigateToCrearUsuario() {
     UsuarioDialog.mostrarCrearUsuario(
@@ -92,6 +93,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
   void _onUsuarioActualizado() {
     _cargarUsuarios();
+    setState(() {
+      _usuarioSeleccionado = null; // Deseleccionar después de editar
+    });
   }
 
   void _mostrarError(String mensaje) {
@@ -133,11 +137,13 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
 
     if (confirmado == true) {
       try {
-        // ✅ CORREGIDO: usuario.id ya es String
         final exito = await UsuariosService.eliminarUsuario(usuario.id, context);
         if (exito) {
           _cargarUsuarios();
           _mostrarExito('Usuario eliminado exitosamente');
+          setState(() {
+            _usuarioSeleccionado = null; // Deseleccionar después de eliminar
+          });
         } else {
           _mostrarError('Error al eliminar el usuario');
         }
@@ -145,6 +151,12 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         _mostrarError('Error al eliminar usuario: $e');
       }
     }
+  }
+
+  void _seleccionarUsuario(Usuario usuario) {
+    setState(() {
+      _usuarioSeleccionado = _usuarioSeleccionado == usuario ? null : usuario;
+    });
   }
 
   List<Usuario> get _usuariosFiltrados {
@@ -173,6 +185,12 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     }
   }
 
+  // Detectar si es móvil
+  bool get _esMovil {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.width < 760; // Umbral para móvil
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -194,25 +212,45 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               ),
               Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: _cargarUsuarios,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Recargar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
+                  // Botón Recargar
+                  _esMovil
+                      ? IconButton(
+                          onPressed: _cargarUsuarios,
+                          icon: const Icon(Icons.refresh),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _cargarUsuarios,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Recargar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _navigateToCrearUsuario,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Nuevo Usuario'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
+                  // Botón Nuevo Usuario
+                  _esMovil
+                      ? IconButton(
+                          onPressed: _navigateToCrearUsuario,
+                          icon: const Icon(Icons.add),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _navigateToCrearUsuario,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Nuevo Usuario'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                 ],
               ),
             ],
@@ -294,6 +332,8 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                             itemCount: _usuariosFiltrados.length,
                             itemBuilder: (context, index) {
                               final usuario = _usuariosFiltrados[index];
+                              final estaSeleccionado = _usuarioSeleccionado == usuario;
+                              
                               return Card(
                                 color: Colors.white.withOpacity(0.1),
                                 margin: const EdgeInsets.only(bottom: 8),
@@ -322,11 +362,11 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                         '@${usuario.username}',
                                         style: const TextStyle(color: Colors.white70),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 3),
                                       Row(
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: _getRoleColor(usuario.rol),
                                               borderRadius: BorderRadius.circular(12),
@@ -340,9 +380,9 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 6),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: usuario.activo ? Colors.green : Colors.red,
                                               borderRadius: BorderRadius.circular(12),
@@ -360,19 +400,44 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                                       ),
                                     ],
                                   ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit, color: Colors.blue),
-                                        onPressed: () => _navigateToEditarUsuario(usuario),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () => _eliminarUsuario(usuario),
-                                      ),
-                                    ],
-                                  ),
+                                 trailing: _esMovil
+    ? (estaSeleccionado
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                iconSize: 20.0, // Tamaño reducido para móvil
+                padding: EdgeInsets.all(5.0), // Elimina espacio interno
+                constraints: BoxConstraints(), // Elimina espacio externo
+                onPressed: () => _navigateToEditarUsuario(usuario),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                iconSize: 20.0, // Tamaño reducido para móvil
+                padding: EdgeInsets.all(5.0),
+                constraints: BoxConstraints(),
+                onPressed: () => _eliminarUsuario(usuario),
+              ),
+            ],
+          )
+        : null)
+    : Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.blue),
+            onPressed: () => _navigateToEditarUsuario(usuario),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () => _eliminarUsuario(usuario),
+          ),
+        ],
+      ),
+                                  onTap: _esMovil
+                                      ? () => _seleccionarUsuario(usuario)
+                                      : null,
                                 ),
                               );
                             },

@@ -15,7 +15,7 @@ const auth = require("./modulos/auth/rutas");
 const articulos = require("./modulos/articulos/rutas");
 const uploads = require("./modulos/uploads/rutas");
 const marcas = require("./modulos/marcas/rutas");
-
+const inventario = require("./modulos/inventario/rutas");
 // 🔧 Configuración
 const { app: _app } = require("./config");
 
@@ -94,7 +94,7 @@ app.use("/api/usuarios", usuarios);
 app.use("/api/auth", auth);
 app.use("/api/articulos", articulos);
 app.use("/api/marcas", marcas);
-
+app.use("/api/inventario", inventario);
 // 📦 Subida de archivos
 app.use("/api/uploads", uploads); // ¡Cuidado de no duplicar con `/uploads`!
 

@@ -10,7 +10,7 @@ module.exports = function (dbInyectada) {
   }
 
   async function login(username, password) {
-    // Buscar usuario por username usando la función 'buscar'
+    // 🔍 Buscar usuario por username
     const usuario = await db.buscar(TABLA, "username", username);
 
     if (!usuario) {
@@ -21,33 +21,34 @@ module.exports = function (dbInyectada) {
       throw new Error("Cuenta inactiva");
     }
 
-    // Verificar contraseña usando el campo 'password_hash'
-    const passwordValida = await bcrypt.compare(
-      password,
-      usuario.password_hash
-    );
+    // 🔐 Verificar contraseña usando el campo 'password_hash'
+    const passwordValida = await bcrypt.compare(password, usuario.password_hash);
     if (!passwordValida) {
       throw new Error("Contraseña incorrecta");
     }
 
-    // Crear token JWT
+    // 🧩 Crear token JWT con los campos completos
     const payload = {
       id: usuario.id,
       username: usuario.username,
       rol: usuario.rol,
+      bodega: usuario.bodega || null, // puede ser null si el usuario es solo de consulta
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET || "suchance27", {
+    const token = jwt.sign(payload, process.env.JWT_SECRET , {
       expiresIn: "6h",
     });
 
+    // ✅ Devolver datos útiles al frontend
     return {
       message: "Login exitoso",
       token,
       usuario: {
         id: usuario.id,
         nombre_completo: usuario.nombre_completo,
+        username: usuario.username,
         rol: usuario.rol,
+        bodega: usuario.bodega || null,
       },
     };
   }

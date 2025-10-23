@@ -38,16 +38,30 @@ class MenuService {
         icon: Icons.dashboard
       ),
       MenuOption(
-        title: 'Inventario',
-        route: '/inventario',
-        icon: Icons.inventory_2,
-        submenu: [
-          MenuOption(title: 'Categorías', route: '/categorias', icon: Icons.category),
-          MenuOption(title: 'Artículos', route: '/articulos', icon: Icons.inventory),
-          MenuOption(title: 'Activos', route: '/activos', icon: Icons.computer),
-          MenuOption(title: 'Consumibles', route: '/consumibles', icon: Icons.local_offer),
-        ],
-      ),
+  title: 'Inventario',
+  route: '/inventario',
+  icon: Icons.inventory_2, 
+  submenu: [
+       MenuOption(
+      title: 'General', route: '/general', icon: Icons.dashboard, 
+    ),
+    MenuOption(
+      title: 'Stock', route: '/stock', icon: Icons.check_box, 
+    ),
+    MenuOption(
+      title: 'Activos', route: '/activos', icon: Icons.laptop, 
+    ),
+    MenuOption(
+      title: 'Consumibles', route: '/consumibles', icon: Icons.local_grocery_store, 
+    ),
+    MenuOption(
+      title: 'Categorías',  route: '/categorias',  icon: Icons.label,
+    ),
+    MenuOption(
+      title: 'Artículos',  route: '/articulos', icon: Icons.article, 
+    ),
+  ],
+),
       MenuOption(
         title: 'Movimientos', 
         route: '/movimientos', 
@@ -142,15 +156,25 @@ class MenuService {
         icon: Icons.dashboard
       ),
       MenuOption(
-        title: 'Inventario',
-        route: '/inventario',
-        icon: Icons.inventory_2,
-        submenu: [
-          MenuOption(title: 'Artículos', route: '/articulos', icon: Icons.inventory),
-          MenuOption(title: 'Activos', route: '/activos', icon: Icons.computer),
-          MenuOption(title: 'Consumibles', route: '/consumibles', icon: Icons.local_offer),
-        ],
-      ),
+  title: 'Inventario',route: '/inventario',icon: Icons.inventory_2, 
+  submenu: [
+    MenuOption(
+      title: 'General', route: '/general', icon: Icons.dashboard, 
+    ),
+    MenuOption(
+      title: 'Stock', route: '/stock', icon: Icons.check_box, 
+    ),
+    MenuOption(
+      title: 'Activos', route: '/activos', icon: Icons.laptop, 
+    ),
+    MenuOption(
+      title: 'Consumibles', route: '/consumibles', icon: Icons.local_grocery_store, 
+    ),
+    MenuOption(
+      title: 'Artículos',  route: '/articulos', icon: Icons.article, 
+    ),
+  ],
+),
       MenuOption(
         title: 'Movimientos', 
         route: '/movimientos', 
