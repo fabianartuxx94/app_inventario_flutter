@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:frontend/config/config.dart';
 
 class MapInitializationService {
@@ -13,9 +13,13 @@ class MapInitializationService {
   static Future<void> _initializeMapboxForMobile() async {
     try {
       // Mapbox se inicializa cuando se usa el widget en móvil
-      print('✅ Mapbox disponible para móvil');
+      if (kDebugMode) {
+        print('✅ Mapbox disponible para móvil');
+      }
     } catch (e) {
-      print('❌ Error con Mapbox en móvil: $e');
+      if (kDebugMode) {
+        print('❌ Error con Mapbox en móvil: $e');
+      }
     }
   }
 

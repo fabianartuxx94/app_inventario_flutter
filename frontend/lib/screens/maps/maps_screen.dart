@@ -7,6 +7,8 @@ import 'package:frontend/widgets/custom_background.dart';
 import 'package:frontend/widgets/unified_map.dart';
 import 'package:latlong2/latlong.dart' as latlong;
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MapaSitiosScreen extends StatefulWidget {
   const MapaSitiosScreen({super.key});
@@ -26,11 +28,15 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
   Set<String> ciudades = {'Todas'};
   Set<String> tiposSv = {'Todos'};
 
+  // Variables para ubicación del usuario
+  latlong.LatLng? _userLocation;
+  bool _isLoadingLocation = false;
+  String _locationError = '';
+
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<SitioVenta> _sugerencias = [];
 
-  // ✅ CORREGIDO: Usar GlobalKey con el tipo correcto
   final GlobalKey<UnifiedMapState> _mapKey = GlobalKey();
 
   @override
@@ -94,7 +100,6 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
       }).toList();
     });
 
-    // Centrar el mapa en los sitios filtrados
     _centrarMapaEnSitios();
   }
 
@@ -156,6 +161,52 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
 
     if (coords.isNotEmpty && _mapKey.currentState != null) {
       _mapKey.currentState!.fitBounds(coords);
+    }
+  }
+
+  // Obtener ubicación del usuario
+  Future<void> _getUserLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationError = '';
+    });
+
+    try {
+      // Verificar permisos
+      final status = await Permission.location.request();
+      if (!status.isGranted) {
+        setState(() {
+          _locationError = 'Permiso de ubicación denegado';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // Obtener ubicación
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+
+      setState(() {
+        _userLocation = latlong.LatLng(
+          position.latitude,
+          position.longitude,
+        );
+        _isLoadingLocation = false;
+      });
+
+      // Centrar mapa en la ubicación del usuario
+      _mapKey.currentState?.centerMap(
+        position.latitude,
+        position.longitude,
+        zoom: 14.0,
+      );
+
+    } catch (e) {
+      setState(() {
+        _locationError = 'Error obteniendo ubicación: $e';
+        _isLoadingLocation = false;
+      });
     }
   }
 
@@ -247,7 +298,11 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              _buildStyleButton(),
+              const SizedBox(width: 8),
+              _buildLocationButton(),
+              const SizedBox(width: 8),
               Chip(
                 label: Text(
                   '${sitiosFiltrados.length} sitios',
@@ -321,6 +376,53 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStyleButton() {
+    return PopupMenuButton<String>(
+      icon: Container(
+        decoration: BoxDecoration(
+          color: Colors.purple.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: const Icon(Icons.layers, color: Colors.white, size: 20),
+      ),
+      onSelected: (style) {
+        _mapKey.currentState?.changeMapStyle(style);
+      },
+      itemBuilder: (BuildContext context) {
+        return MapStyles.styles.entries.map((entry) {
+          return PopupMenuItem<String>(
+            value: entry.value,
+            child: Text(entry.key),
+          );
+        }).toList();
+      },
+    );
+  }
+
+  Widget _buildLocationButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        icon: _isLoadingLocation
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.my_location, color: Colors.white),
+        onPressed: _getUserLocation,
+        tooltip: 'Mi ubicación',
       ),
     );
   }
@@ -407,23 +509,24 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
     );
   }
 
-  Widget _buildMapa() {
-    return UnifiedMap(
-      key: _mapKey,
-      sitios: sitiosFiltrados,
-      onSitioTapped: _mostrarDetallesSitio,
-      initialCenter: const latlong.LatLng(2.830, -75.612),
-      initialZoom: 7.0,
-      onMapCreated: () {
-        // El mapa se ha creado, centrar en los sitios
-        if (sitiosFiltrados.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _centrarMapaEnSitios();
-          });
-        }
-      },
-    );
-  }
+Widget _buildMapa() {
+  return UnifiedMap(
+    key: _mapKey,
+    sitios: sitiosFiltrados,
+    onSitioTapped: _mostrarDetallesSitio,
+    initialCenter: const latlong.LatLng(2.813, -75.462),
+    initialZoom: 8.0, // ← Cambiado a 8.0
+    showUserLocation: _userLocation != null,
+    userLocation: _userLocation,
+    onMapCreated: () {
+      if (sitiosFiltrados.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _centrarMapaEnSitios();
+        });
+      }
+    },
+  );
+}
 
   Color _obtenerColorContainerEstado(String estado) {
     switch (estado) {
@@ -498,4 +601,5 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
       ),
     );
   }
+  
 }
