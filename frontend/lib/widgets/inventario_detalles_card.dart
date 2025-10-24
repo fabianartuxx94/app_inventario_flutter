@@ -9,13 +9,13 @@ class InventarioDetallesCard extends StatelessWidget {
   final VoidCallback onCerrar;
 
   const InventarioDetallesCard({
-    Key? key,
+    super.key,
     required this.inventario,
     required this.isAdmin,
     this.onEditar,
     this.onVerHistorial,
     required this.onCerrar,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

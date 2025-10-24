@@ -55,13 +55,15 @@ class MenuService {
       title: 'Consumibles', route: '/consumibles', icon: Icons.local_grocery_store, 
     ),
     MenuOption(
-      title: 'Categorías',  route: '/categorias',  icon: Icons.label,
-    ),
-    MenuOption(
       title: 'Artículos',  route: '/articulos', icon: Icons.article, 
     ),
   ],
 ),
+      MenuOption(
+        title: 'Asignacions', 
+        route: '/asignaciones', 
+        icon: Icons.swap_horiz
+      ),
       MenuOption(
         title: 'Movimientos', 
         route: '/movimientos', 
@@ -175,6 +177,11 @@ class MenuService {
     ),
   ],
 ),
+      MenuOption(
+        title: 'Asignacions', 
+        route: '/asignaciones', 
+        icon: Icons.swap_horiz
+      ),
       MenuOption(
         title: 'Movimientos', 
         route: '/movimientos', 

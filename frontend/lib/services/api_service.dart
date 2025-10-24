@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:frontend/config/config.dart';
 import 'package:http/http.dart' as http;
 
@@ -172,4 +173,25 @@ class ApiService {
       return null;
     }
   }
+  Future<http.Response> patch(
+  String endpoint, {
+  Map<String, dynamic>? body,
+  Map<String, String>? queryParams,
+  required String token,
+}) async {
+  final Uri uri = Uri.parse('${AppConfig.apiUrl}$endpoint').replace(
+    queryParameters: queryParams,
+  );
+
+  final Map<String, String> headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
+
+  return await http.patch(
+    uri,
+    headers: headers,
+    body: body != null ? json.encode(body) : null,
+  );
+}
 }

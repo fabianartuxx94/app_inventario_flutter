@@ -24,7 +24,7 @@ class InventarioService {
     }
   }
 
-// 📋 Obtener inventario paginado con filtros (versión simplificada)
+// 📋 Obtener inventario paginado - MEJORADO
 static Future<InventarioResponse> getInventarioPaginated({
   required BuildContext context,
   int page = 1,
@@ -38,59 +38,69 @@ static Future<InventarioResponse> getInventarioPaginated({
 }) async {
   try {
     final token = await _obtenerToken(context);
-    if (token == null) throw Exception('No hay token');
+    if (token == null) throw Exception('No hay token válido');
 
-    final params = {
+    // Construir parámetros de consulta
+    final params = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
-      if (search.isNotEmpty) 'search': search,
-      if (estado.isNotEmpty) 'estado': estado,
-      if (bodega.isNotEmpty) 'bodega': bodega,
-      if (tipoBodega.isNotEmpty) 'tipo_bodega': tipoBodega,
-      if (marca.isNotEmpty) 'marca': marca,
-      if (tipoArticulo.isNotEmpty) 'tipo_articulo': tipoArticulo,
     };
+
+    // Agregar filtros solo si tienen valor
+    if (search.isNotEmpty) params['search'] = search;
+    if (estado.isNotEmpty) params['estado'] = estado;
+    if (bodega.isNotEmpty) params['bodega'] = bodega;
+    if (tipoBodega.isNotEmpty) params['tipo_bodega'] = tipoBodega;
+    if (marca.isNotEmpty) params['marca'] = marca;
+    if (tipoArticulo.isNotEmpty) params['tipo_articulo'] = tipoArticulo;
 
     final uri = Uri.parse('$baseUrl/inventario').replace(queryParameters: params);
     
+    print('🌐 Solicitando inventario: $uri');
+
     final response = await http.get(
       uri,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-    );
+    ).timeout(const Duration(seconds: 30));
 
-    print('📡 GET /inventario - Status: ${response.statusCode}');
+    print('📡 Response status: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      print('✅ Datos recibidos correctamente');
       
-      // ✅ Estructura actual: {body: {items: [...], pagination: {...}}}
-      final body = data['body'] as Map<String, dynamic>;
-      final items = body['items'] as List;
-      final paginationData = body['pagination'] as Map<String, dynamic>;
+      // ✅ Estructura esperada: {body: {items: [...], pagination: {...}}}
+      if (data['body'] != null) {
+        final body = data['body'] as Map<String, dynamic>;
+        final items = body['items'] as List;
+        final paginationData = body['pagination'] as Map<String, dynamic>;
 
-      final pagination = Pagination(
-        page: paginationData['page'] as int,
-        limit: paginationData['limit'] as int,
-        total: paginationData['total'] as int,
-        totalPages: paginationData['totalPages'] as int,
-      );
+        final pagination = Pagination(
+          page: (paginationData['page'] as num?)?.toInt() ?? 1,
+          limit: (paginationData['limit'] as num?)?.toInt() ?? 50,
+          total: (paginationData['total'] as num?)?.toInt() ?? 0,
+          totalPages: (paginationData['totalPages'] as num?)?.toInt() ?? 1,
+        );
 
-      final inventarioItems = items.map((item) => Inventario.fromJson(item)).toList();
+        final inventarioItems = items.map((item) => Inventario.fromJson(item)).toList();
 
-      return InventarioResponse(
-        items: inventarioItems,
-        pagination: pagination,
-      );
+        return InventarioResponse(
+          items: inventarioItems,
+          pagination: pagination,
+        );
+      } else {
+        throw Exception('Estructura de respuesta inválida');
+      }
     } else if (response.statusCode == 401) {
       throw Exception('Token inválido o expirado');
     } else {
-      throw Exception('Error: ${response.statusCode}');
+      throw Exception('Error del servidor: ${response.statusCode}');
     }
   } catch (e) {
-    print('❌ Error getInventarioPaginated: $e');
+    print('❌ Error en getInventarioPaginated: $e');
     rethrow;
   }
 }

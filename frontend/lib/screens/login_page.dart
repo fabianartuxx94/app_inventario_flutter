@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
+import 'package:frontend/screens/dashboard/dashboard_scaffold.dart'; 
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_background.dart';
 import '../services/api_service.dart';
-import 'dashboard/dashboard_page.dart';
 import '../widgets/responsive_layout.dart';
 
 class LoginPage extends StatefulWidget {
@@ -117,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardPage()),
+          MaterialPageRoute(builder: (_) =>DashboardScaffold()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

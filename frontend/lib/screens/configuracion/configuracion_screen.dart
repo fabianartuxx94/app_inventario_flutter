@@ -331,7 +331,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: activeColor,
+        activeThumbColor: activeColor,
         inactiveTrackColor: Colors.white30,
       ),
     );

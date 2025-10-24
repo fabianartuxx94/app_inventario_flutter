@@ -82,8 +82,6 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         tipoArticulo: _tipoArticulo,
         descripcion: _descripcionController.text.trim(),
         imagenPath: nuevaImagenUrl ?? widget.articulo.imagenPath,
-        stockMinimo: widget.articulo.stockMinimo,
-        etiquetas: widget.articulo.etiquetas,
         esActivo: _esActivo, // ✅ nuevo campo
       );
 
@@ -396,7 +394,7 @@ class _EditarArticuloScreenState extends State<EditarArticuloScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: currentValue,
+          initialValue: currentValue,
           dropdownColor: const Color(0xFF2d3748),
           style: const TextStyle(color: Colors.white),
           onChanged: onChanged,

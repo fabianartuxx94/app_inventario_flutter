@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/inventario_model.dart';
+import '../../../models/inventario_model.dart';
 
 class InventarioTablaCard extends StatelessWidget {
   final List<Inventario> inventarios;
@@ -46,7 +46,7 @@ class InventarioTablaCard extends StatelessWidget {
       scrollDirection: Axis.vertical,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Container(
+        child: SizedBox(
           width: totalTableWidth,
           child: DataTable(
             columnSpacing: 16,
@@ -64,7 +64,7 @@ class InventarioTablaCard extends StatelessWidget {
               fontSize: 13,
               height: 1.2,
             ),
-            headingRowColor: MaterialStateProperty.all(Colors.grey[100]),
+            headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
             columns: const [
               DataColumn(label: SizedBox(width: 140, child: Text('Categoría'))),
               DataColumn(label: SizedBox(width: 120, child: Text('Marca'))),

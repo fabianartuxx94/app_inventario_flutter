@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/asignaciones/asignaciones_screen.dart';
 import 'package:frontend/screens/configuracion/configuracion_screen.dart';
 import 'package:frontend/screens/inventario/inventario_screen.dart';
+import 'package:frontend/screens/maps/maps_screen.dart';
 import 'package:frontend/screens/usuarios/usuarios_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/menu_service.dart';
-import '../categorias/categorias_page.dart';
 import '../articulos/articulos_screen.dart';
 import '../articulos/crear_articulo_screen.dart';
 import '../articulos/editar_articulo_screen.dart';
@@ -87,14 +88,14 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
         return _buildPlaceholderPage("Activos");    
       case '/consumibles':
         return _buildPlaceholderPage("Consumibles");   
-      case '/categorias':
-        return const CategoriasPage();
       case '/articulos':
         return _buildArticulosScreen();
       case '/movimientos':
         return _buildPlaceholderPage("Movimientos");
       case '/sitios-venta':
         return _buildPlaceholderPage("Sitios de Venta");
+      case '/asignaciones':
+        return const AsignacionesScreen();
       case '/usuarios':
         return const UsuariosScreen();
       case '/reportes':
@@ -106,9 +107,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
       case '/mantenimientos':
         return _buildPlaceholderPage("Mantenimientos SV");
       case '/ubicaciones':
-        return _buildPlaceholderPage("Ubicaciones");
-      case '/asignaciones':
-        return _buildPlaceholderPage("Asignaciones");
+        return const MapaSitiosScreen();
       case '/entradas-compras':
         return _buildPlaceholderPage("Entradas Compras");
       default:
@@ -433,7 +432,6 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
   Widget _buildMobileView(BuildContext context, AuthProvider authProvider) {
     final isCrearArticulo = _currentPage is CrearArticuloScreen;
     final isEditarArticulo = _currentPage is EditarArticuloScreen;
-    final isCategoriasPage = _currentPage is CategoriasPage;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -445,11 +443,6 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: _volverAListaArticulos,
               )
-            : isCategoriasPage && _selectedIndex != _findMenuIndexByRoute('/categorias')
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => _onItemSelected(_findMenuIndexByRoute('/dashboard')),
-                  )
                 : null,
         iconTheme: const IconThemeData(color: Colors.white),
         title: _buildAppBarTitle(),
@@ -496,11 +489,7 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
         'Artículos',
         style: TextStyle(color: Colors.white),
       );
-    } else if (_currentPage is CategoriasPage) {
-      return const Text(
-        'Categorías',
-        style: TextStyle(color: Colors.white),
-      );
+    
     } else {
       for (int i = 0; i < _menuOptions.length; i++) {
         if (_selectedIndex == i) {
@@ -837,10 +826,7 @@ class DashboardHome extends StatelessWidget {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           children: [
-            _buildStatCard("Usuarios", "12", Icons.people, Colors.blue),
-            _buildStatCard("Artículos", "156", Icons.inventory_2, Colors.green),
-            _buildStatCard("Categorías", "8", Icons.category, Colors.orange),
-            _buildStatCard("Activos", "45", Icons.computer, Colors.purple),
+            
           ],
         ),
       ],

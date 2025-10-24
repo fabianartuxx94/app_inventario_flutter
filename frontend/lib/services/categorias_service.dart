@@ -27,17 +27,7 @@ class CategoriasService {
       final List<Map<String, dynamic>> categorias =
           List<Map<String, dynamic>>.from(data['body']);
 
-      // Decodificar campo "etiquetas" si viene como texto JSON
-      for (var cat in categorias) {
-        if (cat['etiquetas'] != null && cat['etiquetas'] is String) {
-          try {
-            cat['etiquetas'] = jsonDecode(cat['etiquetas']);
-          } catch (_) {
-            // Si no se puede decodificar, lo dejamos como cadena
-          }
-        }
-      }
-
+    
       return categorias;
     } else {
       throw Exception(
@@ -54,10 +44,6 @@ class CategoriasService {
     final data = {
       "id": categoria["id"] ?? 0,
       "nombre": categoria["nombre"],
-      "stock_minimo": categoria["stock_minimo"] ?? 0,
-      "etiquetas": categoria["etiquetas"] != null
-          ? jsonEncode(categoria["etiquetas"])
-          : jsonEncode([]),
     };
 
     final response = await http.post(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/services/marcas_service.dart';
-import 'package:frontend/widgets/categoria_dialog.dart';
+import 'package:frontend/widgets/cards/categoria_dialog.dart';
 import 'package:provider/provider.dart';
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
@@ -26,7 +26,6 @@ class CrearArticuloScreen extends StatefulWidget {
 class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   final _formKey = GlobalKey<FormState>();
   final _referenciaController = TextEditingController();
-  final _stockMinimoController = TextEditingController(text: '0');
   final _descripcionController = TextEditingController();
 
   // ✅ CORREGIDO: Variables de estado definidas correctamente
@@ -78,7 +77,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
   @override
   void dispose() {
     _referenciaController.dispose();
-    _stockMinimoController.dispose();
     _categoriaSearchController.dispose();
     _marcaSearchController.dispose();
     _descripcionController.dispose();
@@ -386,8 +384,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         esActivo: _esActivo, // ✅ CORREGIDO: Variable ahora definida
         descripcion: _descripcionController.text.trim(), // ✅ CORREGIDO: Campo añadido
         imagenPath: imagenUrl,
-        stockMinimo: int.tryParse(_stockMinimoController.text) ?? 0, // ✅ CORREGIDO: Campo añadido
-        etiquetas: '[]',
         creadoEn: null,
       );
 
@@ -605,9 +601,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
             SizedBox(width: fieldWidth, child: _buildMarcaSearch()),
             // Referencia
             SizedBox(width: fieldWidth, child: _buildReferenciaField()),
-            
-            // Stock mínimo ✅ CORREGIDO: Campo añadido
-            SizedBox(width: fieldWidth, child: _buildStockMinimoField()),
             // Tipo de artículo
             SizedBox(width: fieldWidth, child: _buildTipoArticuloDropdown()),
             // Bodega
@@ -689,18 +682,6 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
     label: 'Descripción *',
     maxLines: 3,
     validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
-  );
-
-  Widget _buildStockMinimoField() => _buildTextField(
-    controller: _stockMinimoController,
-    label: 'Stock Mínimo',
-    keyboardType: TextInputType.number,
-    validator: (v) {
-      if (v == null || v.isEmpty) return null;
-      final value = int.tryParse(v);
-      if (value == null || value < 0) return 'Ingrese un número válido';
-      return null;
-    },
   );
 
   Widget _buildTipoArticuloDropdown() {
@@ -794,7 +775,7 @@ class _CrearArticuloScreenState extends State<CrearArticuloScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           dropdownColor: const Color(0xFF2d3748),
           style: const TextStyle(color: Colors.white),
           onChanged: onChanged,

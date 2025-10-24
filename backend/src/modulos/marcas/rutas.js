@@ -1,32 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const respuesta = require("../../red/respuestas");
-const controlador = require("./index");
+const controlador = require("./controlador");
 const { verificarToken, permitirRoles } = require("../auth/middleware");
 
-// 🧩 Listar inventario con filtros
-router.get(
-  "/",
-  verificarToken,
-  permitirRoles("administrador", "usuario", "bodeguero", "tecnico"),
-  todos
-);
+// 🧩 Listar todas las marcas
+router.get("/", verificarToken, todos);
 
-// 🧩 Obtener un registro
-router.get(
-  "/:id",
-  verificarToken,
-  permitirRoles("administrador", "usuario", "bodeguero", "tecnico"),
-  uno
-);
+// 🧩 Obtener una marca
+router.get("/:id", verificarToken, uno);
 
-// 🧩 Obtener filtros disponibles
-router.get(
-  "/filtros/disponibles",
-  verificarToken,
-  permitirRoles("administrador", "usuario", "bodeguero", "tecnico"),
-  filtrosDisponibles
-);
+// 🧩 Crear nueva marca
+router.post("/", verificarToken, permitirRoles("administrador", "bodeguero"), agregar);
 
 // ---------------------------
 // Controladores HTTP
@@ -34,28 +19,35 @@ router.get(
 
 async function todos(req, res, next) {
   try {
-    const resultado = await controlador.todos(req.user, req.query);
-    respuesta.success(req, res, resultado, 200);
+    console.log("📥 SOLICITUD GET /api/marcas recibida");
+    const items = await controlador.todos();
+    console.log("✅ Enviando respuesta con", items.length, "marcas");
+    respuesta.success(req, res, items, 200);
   } catch (error) {
+    console.error("❌ ERROR EN RUTA MARCAS - TODOS:", error);
     respuesta.error(req, res, error.message, 500);
   }
 }
 
 async function uno(req, res, next) {
   try {
-    const item = await controlador.uno(req.params.id, req.user);
+    const item = await controlador.uno(req.params.id);
+    if (!item) {
+      return respuesta.error(req, res, "Marca no encontrada", 404);
+    }
     respuesta.success(req, res, item, 200);
   } catch (error) {
-    const status = error.message.includes('permiso') ? 403 : 404;
-    respuesta.error(req, res, error.message, status);
+    console.error("❌ ERROR EN RUTA MARCAS - UNO:", error);
+    respuesta.error(req, res, error.message, 500);
   }
 }
 
-async function filtrosDisponibles(req, res, next) {
+async function agregar(req, res, next) {
   try {
-    const filtros = await controlador.filtrosDisponibles(req.user);
-    respuesta.success(req, res, filtros, 200);
+    const item = await controlador.agregar(req.body);
+    respuesta.success(req, res, item, 201);
   } catch (error) {
+    console.error("❌ ERROR EN RUTA MARCAS - AGREGAR:", error);
     respuesta.error(req, res, error.message, 500);
   }
 }

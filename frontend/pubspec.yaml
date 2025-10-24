@@ -20,6 +20,12 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_keyboard_visibility: ^6.0.0
   http_parser: ^4.1.2
+  mapbox_maps_flutter: ^2.2.0
+  permission_handler: ^11.0.1
+  geolocator: ^14.0.2
+  flutter_dotenv: ^6.0.0
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
   
 
 dev_dependencies:
@@ -32,3 +38,5 @@ flutter:
   
   assets:
     - assets/suchance.png
+    - assets/icons/
+    - .env

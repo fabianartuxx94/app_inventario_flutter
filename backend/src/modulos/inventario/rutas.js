@@ -56,11 +56,14 @@ router.get(
 // Controladores HTTP
 // ---------------------------
 
+// 🧩 Listar inventario - CORREGIDO
 async function todos(req, res, next) {
   try {
-    const items = await controlador.todos(req.user);
+    console.log('📥 Query params recibidos en ruta:', req.query); // DEBUG
+    const items = await controlador.todos(req.user, req.query); // ← Pasar query params
     respuesta.success(req, res, items, 200);
   } catch (error) {
+    console.error('❌ Error en ruta /inventario:', error);
     respuesta.error(req, res, error.message, 500);
   }
 }

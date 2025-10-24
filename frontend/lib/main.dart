@@ -1,13 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/dashboard/dashboard_page.dart';
+import 'package:frontend/screens/dashboard/dashboard_scaffold.dart';
 import 'package:frontend/widgets/InactivityListener.dart';
 import 'package:provider/provider.dart';
 import 'screens/login_page.dart';
 import 'providers/auth_provider.dart';
 import 'utils/globals.dart';
+import 'services/map_initialization_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ Añadir import
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ INICIALIZAR flutter_dotenv PRIMERO
+  await dotenv.load(fileName: ".env");
+
+  // ✅ Opcional: imprimir configuración para debug
+  if (kDebugMode) {
+    print('✅ .env cargado correctamente');
+    print('✅ MAP_TOKEN disponible: ${dotenv.env['MAP_TOKEN'] != null}');
+  }
+
+  // Inicialización segura para web y móvil
+  await MapInitializationService.initialize();
 
   runApp(
     MultiProvider(
@@ -30,9 +45,7 @@ class InventarioApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       builder: (context, child) {
         return ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
-            scrollbars: false,
-          ),
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
           child: child!,
         );
       },
@@ -48,10 +61,9 @@ class InventarioApp extends StatelessWidget {
           return FutureBuilder(
             future: authProvider.loadStoredToken(),
             builder: (context, snapshot) {
-              // Eliminamos la pantalla de carga
               if (authProvider.isTokenValid) {
                 return InactivityListener(
-                  child: const DashboardPage(),
+                  child: const DashboardScaffold(),
                 );
               } else {
                 return const LoginPage();

@@ -1,10 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/categorias_service.dart';
-import '../providers/auth_provider.dart';
+import '../../services/categorias_service.dart';
+import '../../providers/auth_provider.dart';
 
 class CategoriaDialog extends StatefulWidget {
   final Map<String, dynamic>? categoria;
@@ -24,8 +22,6 @@ class CategoriaDialog extends StatefulWidget {
 
 class _CategoriaDialogState extends State<CategoriaDialog> {
   final TextEditingController _nombreController = TextEditingController();
-  final TextEditingController _stockController = TextEditingController();
-  final TextEditingController _etiquetasController = TextEditingController();
 
   bool get _isEdit => widget.categoria != null;
 
@@ -34,29 +30,12 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
     super.initState();
     if (_isEdit) {
       _nombreController.text = widget.categoria!['nombre'] ?? '';
-      _stockController.text = (widget.categoria!['stock_minimo'] ?? 0).toString();
-      _etiquetasController.text = _formatEtiquetas(widget.categoria!['etiquetas']);
     } else if (widget.nombrePredefinido != null) {
       // ✅ PRELLENAR CON EL NOMBRE DE LA BÚSQUEDA
       _nombreController.text = widget.nombrePredefinido!;
     }
   }
 
-  String _formatEtiquetas(dynamic etiquetas) {
-    if (etiquetas == null) return '';
-    if (etiquetas is String) {
-      try {
-        final parsed = List<String>.from(json.decode(etiquetas));
-        return parsed.join(', ');
-      } catch (e) {
-        return etiquetas;
-      }
-    }
-    if (etiquetas is List) {
-      return etiquetas.join(', ');
-    }
-    return '';
-  }
 
   Future<void> _guardarCategoria() async {
     if (_nombreController.text.trim().isEmpty) {
@@ -72,12 +51,6 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
       final categoriaData = {
         "id": widget.categoria?['id'] ?? 0,
         "nombre": _nombreController.text.trim(),
-        "stock_minimo": int.tryParse(_stockController.text) ?? 0,
-        "etiquetas": _etiquetasController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList(),
       };
 
       await CategoriasService.guardarCategoria(categoriaData, token);
@@ -121,23 +94,7 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _stockController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Stock mínimo',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _etiquetasController,
-              decoration: const InputDecoration(
-                labelText: 'Etiquetas (separadas por comas)',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            
           ],
         ),
       ),

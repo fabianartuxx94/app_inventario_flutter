@@ -1,0 +1,23 @@
+
++++++++++Gestion Inventario++++++++++++++
+
+POST   /api/gestion/asignaciones-masivas
+POST   /api/gestion/transferencias
+POST   /api/gestion/devoluciones
+GET    /api/gestion/stock-agregado
+
+🔔 NUEVOS:
+GET    /api/gestion/notificaciones
+PATCH  /api/gestion/notificaciones/:id/leer
+GET    /api/gestion/notificaciones/estadisticas
+
+
+
+++++++++++++Actas++++++++++++++++++
+
+
+GET    /api/actas                    # Listar actas con paginación
+GET    /api/actas/:id                # Obtener acta completa con detalles
+GET    /api/actas/estadisticas/generales  # Estadísticas de actas
+GET    /api/actas/filtros/disponibles     # Filtros disponibles
+POST   /api/actas/:id/generar-pdf    # Generar PDF del acta

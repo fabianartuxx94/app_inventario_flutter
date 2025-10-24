@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/widgets/inventario_card.dart';
+import 'package:frontend/widgets/cards/inventario_card.dart';
 import 'package:provider/provider.dart';
 import '../../models/inventario_model.dart';
 import '../../services/inventario_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_background.dart';
 import '../../widgets/inventario_detalles_card.dart';
-import '../../widgets/inventario_tabla_card.dart';
+import '../../widgets/cards/inventario_tabla_card.dart';
 
 class InventarioScreen extends StatefulWidget {
-  const InventarioScreen({Key? key}) : super(key: key);
+  const InventarioScreen({super.key});
 
   @override
   State<InventarioScreen> createState() => _InventarioScreenState();
@@ -653,7 +653,7 @@ Widget _buildFiltrosAvanzados() {
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonFormField<String>(
-              value: selectedValue.isEmpty ? null : selectedValue,
+              initialValue: selectedValue.isEmpty ? null : selectedValue,
               dropdownColor: const Color(0xFF1E293B),
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(

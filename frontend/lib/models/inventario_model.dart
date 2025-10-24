@@ -10,6 +10,7 @@ class Inventario {
   final DateTime fechaCreacion;
   final DateTime fechaActualizacion;
   
+  // Campos de joins
   final String articuloReferencia;
   final String articuloDescripcion;
   final String tipoArticulo;
@@ -37,20 +38,30 @@ class Inventario {
   });
 
   factory Inventario.fromJson(Map<String, dynamic> json) {
+    // ✅ Manejo seguro de fechas y campos nulos
+    DateTime parseFecha(String? fechaString) {
+      if (fechaString == null) return DateTime.now();
+      try {
+        return DateTime.parse(fechaString);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
     return Inventario(
-      id: json['id'] as int,
-      articuloId: json['articulo_id'] as int,
+      id: json['id'] as int? ?? 0,
+      articuloId: json['articulo_id'] as int? ?? 0,
       placa: json['placa'] as String?,
       serial: json['serial'] as String?,
       estado: (json['estado'] as String?) ?? 'Bueno',
       cantidad: (json['cantidad'] as num?)?.toInt() ?? 1,
       bodega: (json['bodega'] as String?) ?? 'Bodega Principal',
       ubicacionDetallada: json['ubicacion_detallada'] as String?,
-      fechaCreacion: DateTime.parse((json['fecha_creacion'] as String?) ?? DateTime.now().toIso8601String()),
-      fechaActualizacion: DateTime.parse((json['fecha_actualizacion'] as String?) ?? DateTime.now().toIso8601String()),
+      fechaCreacion: parseFecha(json['fecha_creacion'] as String?),
+      fechaActualizacion: parseFecha(json['fecha_actualizacion'] as String?),
       articuloReferencia: (json['articulo_referencia'] as String?) ?? 'Sin referencia',
       articuloDescripcion: (json['articulo_descripcion'] as String?) ?? 'Sin descripción',
-      tipoArticulo: (json['tipo_articulo'] as String?) ?? 'general',
+      tipoArticulo: (json['tipo_articulo'] as String?) ?? 'Activo Fijo',
       tipoBodega: (json['tipo_bodega'] as String?) ?? 'Sistemas',
       categoriaNombre: (json['categoria_nombre'] as String?) ?? 'Sin categoría',
       marcaNombre: json['marca_nombre'] as String?,
@@ -67,6 +78,8 @@ class Inventario {
       'cantidad': cantidad,
       'bodega': bodega,
       'ubicacion_detallada': ubicacionDetallada,
+      'fecha_creacion': fechaCreacion.toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion.toIso8601String(),
       'articulo_referencia': articuloReferencia,
       'articulo_descripcion': articuloDescripcion,
       'tipo_articulo': tipoArticulo,

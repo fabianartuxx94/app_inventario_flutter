@@ -7,80 +7,76 @@ module.exports = function (dbInyectada) {
   let db = dbInyectada;
   if (!db) db = require("../../DB/mysql");
 
-  async function agregar(data) {
-    try {
-      console.log("📥 DATOS RECIBIDOS EN AGREGAR ARTÍCULO:");
-      console.log("   categoria_id:", data.categoria_id);
-      console.log("   marca_id:", data.marca_id);
-      console.log("   articulo_id:", data.articulo_id);
-      
+ async function agregar(data) {
+  try {
+    console.log("📥 DATOS RECIBIDOS EN AGREGAR ARTÍCULO:", data);
 
-      let articuloId;
+    let articuloId;
 
-      if (data.articulo_id) {
-        // ACTUALIZAR artículo existente
-        console.log("🔄 ACTUALIZANDO ARTÍCULO EXISTENTE - ID:", data.articulo_id);
+    if (data.articulo_id) {
+      // ACTUALIZAR artículo existente
+      console.log("🔄 ACTUALIZANDO ARTÍCULO EXISTENTE - ID:", data.articulo_id);
 
-        const queryArticulo = `UPDATE ${TABLA_ARTICULOS} 
-                              SET categoria_id = ?, 
-                                  marca_id = ?,
-                                  tipo_bodega = ?, 
-                                  es_activo = ?,
-                                  tipo_articulo = ?,
-                                  referencia = ?,
-                                  descripcion = ?,
-                                  imagen_path = ?
-                              WHERE id = ?`;
+      const queryArticulo = `UPDATE ${TABLA_ARTICULOS} 
+                            SET categoria_id = ?, 
+                                marca_id = ?,
+                                tipo_bodega = ?, 
+                                es_activo = ?,
+                                tipo_articulo = ?,
+                                referencia = ?,
+                                descripcion = ?,
+                                imagen_path = ?
+                            WHERE id = ?`;
 
-        const valuesArticulo = [
-          data.categoria_id,
-          data.marca_id,
-          data.tipo_bodega,
-          data.es_activo,
-          data.tipo_articulo,
-          data.referencia,
-          data.descripcion,
-          data.imagen_path,
-          data.articulo_id,
-        ];
+      const valuesArticulo = [
+        data.categoria_id,
+        data.marca_id,
+        data.tipo_bodega,
+        data.es_activo,
+        data.tipo_articulo,
+        data.referencia,
+        data.descripcion,
+        data.imagen_path,
+        data.articulo_id,
+      ];
 
-        await db.consultaDirecta(queryArticulo, valuesArticulo);
-        articuloId = data.articulo_id;
+      await db.consultaDirecta(queryArticulo, valuesArticulo);
+      articuloId = data.articulo_id;
 
-      } else {
-        // CREAR nuevo artículo
-        console.log("🆕 CREANDO NUEVO ARTÍCULO");
+    } else {
+      // CREAR nuevo artículo
+      console.log("🆕 CREANDO NUEVO ARTÍCULO");
 
-        const queryArticulo = `INSERT INTO ${TABLA_ARTICULOS} 
-  (categoria_id, marca_id, tipo_bodega, es_activo, tipo_articulo, referencia, descripcion, imagen_path) 
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      const queryArticulo = `INSERT INTO ${TABLA_ARTICULOS} 
+        (categoria_id, marca_id, tipo_bodega, es_activo, tipo_articulo, referencia, descripcion, imagen_path) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-const valuesArticulo = [
-  data.categoria_id,
-  data.marca_id,
-  data.tipo_bodega,
-  data.es_activo,
-  data.tipo_articulo,
-  data.referencia,
-  data.descripcion,
-  data.imagen_path,
-];
+      const valuesArticulo = [
+        data.categoria_id,
+        data.marca_id,
+        data.tipo_bodega,
+        data.es_activo,
+        data.tipo_articulo,
+        data.referencia,
+        data.descripcion,
+        data.imagen_path,
+      ];
 
-        const resultado = await db.consultaDirecta(queryArticulo, valuesArticulo);
-        articuloId = resultado.insertId;
-      }
-
-      console.log("✅ ARTÍCULO GUARDADO - ID:", articuloId);
-      return {
-        message: "Artículo guardado correctamente",
-        articulo_id: articuloId,
-      };
-
-    } catch (error) {
-      console.error("❌ ERROR EN AGREGAR ARTÍCULO:", error);
-      throw error;
+      const resultado = await db.consultaDirecta(queryArticulo, valuesArticulo);
+      articuloId = resultado.insertId;
     }
+
+    console.log("✅ ARTÍCULO GUARDADO - ID:", articuloId);
+    return {
+      message: "Artículo guardado correctamente",
+      articulo_id: articuloId,
+    };
+
+  } catch (error) {
+    console.error("❌ ERROR EN AGREGAR ARTÍCULO:", error);
+    throw error;
   }
+}
 
   async function eliminar(articulo_id) {
   try {
@@ -117,8 +113,6 @@ const valuesArticulo = [
         a.creado_en,
         c.id AS categoria_id,
         c.nombre AS categoria_nombre,
-        c.stock_minimo,
-        c.etiquetas,
         m.id AS marca_id,
         m.nombre AS marca_nombre
       FROM ${TABLA_ARTICULOS} a
@@ -152,8 +146,6 @@ const valuesArticulo = [
         a.creado_en,
         c.id AS categoria_id,
         c.nombre AS categoria_nombre,
-        c.stock_minimo,
-        c.etiquetas,
         m.id AS marca_id,
         m.nombre AS marca_nombre
       FROM ${TABLA_ARTICULOS} a

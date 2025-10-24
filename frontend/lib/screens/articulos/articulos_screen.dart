@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/articulo_model.dart';
 import '../../services/articulos_service.dart';
-import '../../widgets/articulo_card.dart';
+import '../../widgets/cards/articulo_card.dart';
 import '../../widgets/custom_background.dart';
 import '../../providers/auth_provider.dart';
 

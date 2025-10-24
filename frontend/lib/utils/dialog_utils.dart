@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/categoria_dialog.dart';
+import '../widgets/cards/categoria_dialog.dart';
 
 class DialogUtils {
   static Future<Map<String, dynamic>?> showCategoriaDialog({

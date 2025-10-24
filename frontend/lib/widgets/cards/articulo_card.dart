@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/config/config.dart';
-import '../../models/articulo_model.dart';
+import '../../../models/articulo_model.dart';
 
 /// Widget que representa una tarjeta visual de un artículo
 /// con modo selección, zoom y acciones de editar/eliminar.
@@ -85,32 +85,6 @@ class ArticuloCard extends StatelessWidget {
                   _horizontalInfoRow(Icons.description, 'Descripción:', articulo.descripcion, baseFontSize + 3),
                   const SizedBox(height: 8),
 
-                  if (articulo.etiquetas != null)
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Etiquetas:',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: baseFontSize + 2,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: Wrap(
-                                spacing: 6,
-                                runSpacing: 4,
-                                children: _buildEtiquetasChips(articulo.etiquetas!, baseFontSize + 1),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -170,16 +144,6 @@ class ArticuloCard extends StatelessWidget {
 
                   const SizedBox(height: 4),
 
-                  if (articulo.etiquetas != null)
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: _buildEtiquetasChips(articulo.etiquetas!, baseFontSize - 2),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -329,31 +293,6 @@ class ArticuloCard extends StatelessWidget {
       default:
         return tipo;
     }
-  }
-
-  List<Widget> _buildEtiquetasChips(String etiquetasStr, double fontSize) {
-    final etiquetas = etiquetasStr
-        .replaceAll('[', '')
-        .replaceAll(']', '')
-        .replaceAll('"', '')
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-
-    return etiquetas.map((etiqueta) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 16, 7, 134),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          etiqueta,
-          style: TextStyle(color: Colors.white, fontSize: fontSize),
-        ),
-      );
-    }).toList();
   }
 
   Widget _infoRow(IconData icon, String text, double fontSize) {

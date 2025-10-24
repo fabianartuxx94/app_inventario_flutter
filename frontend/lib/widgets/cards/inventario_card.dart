@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/inventario_model.dart';
+import '../../models/inventario_model.dart';
 
 class InventarioCard extends StatelessWidget {
   final Inventario inventario;
@@ -9,13 +9,13 @@ class InventarioCard extends StatelessWidget {
   final VoidCallback onVerHistorial;
 
   const InventarioCard({
-    Key? key,
+    super.key,
     required this.inventario,
     required this.isAdmin,
     required this.onVerDetalles,
     required this.onEditar,
     required this.onVerHistorial,
-  }) : super(key: key);
+  });
 
   // Concatenar categoría + marca + referencia
   String _getTituloItem(Inventario item) {

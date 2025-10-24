@@ -187,7 +187,7 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
 
               // Rol
               DropdownButtonFormField<String>(
-                value: _selectedRol,
+                initialValue: _selectedRol,
                 decoration: const InputDecoration(
                   labelText: 'Rol',
                   border: OutlineInputBorder(),
@@ -210,7 +210,7 @@ class __CrearUsuarioDialogState extends State<_CrearUsuarioDialog> {
               // Bodega: solo mostrar si rol no es 'usuario'
               if (_selectedRol != 'usuario')
                 DropdownButtonFormField<String>(
-                  value: _selectedBodega,
+                  initialValue: _selectedBodega,
                   decoration: const InputDecoration(
                     labelText: 'Bodega',
                     border: OutlineInputBorder(),
@@ -475,7 +475,7 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
 
               // Rol
               DropdownButtonFormField<String>(
-                value: _selectedRol,
+                initialValue: _selectedRol,
                 decoration: const InputDecoration(
                   labelText: 'Rol',
                   border: OutlineInputBorder(),
@@ -497,7 +497,7 @@ class __EditarUsuarioDialogState extends State<_EditarUsuarioDialog> {
 
               // Bodega
               DropdownButtonFormField<String>(
-                value: _selectedBodega,
+                initialValue: _selectedBodega,
                 decoration: const InputDecoration(
                   labelText: 'Bodega',
                   border: OutlineInputBorder(),

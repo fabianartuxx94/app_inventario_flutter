@@ -13,8 +13,6 @@ class Articulo {
   final String descripcion; // nuevo
   final String? imagenPath;
   final String? creadoEn;
-  final int stockMinimo;
-  final String? etiquetas;
 
   Articulo({
     this.articuloId,
@@ -29,8 +27,7 @@ class Articulo {
     required this.descripcion,
     this.imagenPath,
     this.creadoEn,
-    required this.stockMinimo,
-    this.etiquetas,
+  
   });
 
   factory Articulo.fromJson(Map<String, dynamic> json) {
@@ -47,8 +44,7 @@ class Articulo {
       descripcion: json['descripcion'] ?? '',
       imagenPath: json['imagen_path'],
       creadoEn: json['creado_en'],
-      stockMinimo: json['stock_minimo'] ?? 0,
-      etiquetas: json['etiquetas'],
+  
     );
   }
 
@@ -63,8 +59,6 @@ class Articulo {
       'es_activo': esActivo ? 1 : 0, // enviar como entero
       'descripcion': descripcion,
       'imagen_path': imagenPath,
-      'stock_minimo': stockMinimo,
-      if (etiquetas != null) 'etiquetas': etiquetas,
     };
   }
 
