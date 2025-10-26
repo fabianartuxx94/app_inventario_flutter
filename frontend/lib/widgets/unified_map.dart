@@ -233,7 +233,7 @@ class _WebMapController {
         initialCenter: initialCenter ?? const latlong.LatLng(2.813, -75.462),
         initialZoom: initialZoom ?? 8.0,
         maxZoom: 19.0,
-        minZoom: 6.0,
+        minZoom: 7.0,
         onPositionChanged: (position, hasGesture) {
           if (onZoomChanged != null) {
             onZoomChanged!(position.zoom);
@@ -478,7 +478,7 @@ class _MobileMapController {
         initialCenter: initialCenter ?? const latlong.LatLng(2.625, -75.612),
         initialZoom: initialZoom ?? 8.0,
         maxZoom: 19.0,
-        minZoom: 6.0,
+        minZoom: 7.0,
         onPositionChanged: (position, hasGesture) {
           if (onZoomChanged != null) {
             onZoomChanged!(position.zoom);

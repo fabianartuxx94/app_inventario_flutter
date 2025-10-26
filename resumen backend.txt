@@ -1,0 +1,4388 @@
+++++++Estructura Backen+++++++
+|   app.js
+|   config.js
+|   index.js
+|   
++---auth
+|       index.js
+|       
++---DB
+|       mysql.js
+|
++---middleware
+|       cors.js
+|       error.js
+|
++---modulos
+|   +---actas
+|   |       controlador.js
+|   |     
+|   |       rutas.js
+|   |
+|   +---articulos
+|   |       controlador.js
+|   |     
+|   |       rutas.js
+|   |
+|   +---asignaciones
+|   |       controlador.js
+|   |      
+|   |       rutas.js
+|   |
+|   +---auth
+|   |       controlador.js
+|   |      
+|   |       middleware.js
+|   |       rutas.js
+|   |
+|   +---categorias
+|   |       controlador.js
+|   |      
+|   |       rutas.js
+|   |
+|   +---gestion
+|   |       controlador.js
+|   |       
+|   |       rutas.js
+|   |
+|   +---inventario
+|   |       controlador.js
+|   |      
+|   |       rutas.js
+|   |
+|   +---maps
+|   |       controlador.js
+|   |      
+|   |       rutas.js
+|   |
+|   +---marcas
+|   |       controlador.js
+|   |     
+|   |       rutas.js
+|   |
+|   +---personal
+|   |       controlador.js
+|   |       
+|   |       rutas.js
+|   |
+|   +---stock
+|   +---uploads
+|   |      
+|   |       rutas.js
+|   |
+|   \---usuarios
+|           controlador.js
+|         
+|           rutas.js
+|
++---red
+|       error.js
+|       respuestas.js
+|
+\---uploads
+    \---images
+        \---articulos
+                accesorios_moviles_asus_funda_y_cargador_movil.jpg
+                baterias_y_ups_huawei_ups_huawei_1kva.jpg
+                cables_y_conectores_logitech_cable_utp_cat6_1m.jpg
+                camaras_y_video_brother_camara_ip_hikvision.jpg
+                cartuchos_y_toner_epson_toner_epson_t664.jpg
+                componentes_internos_kingston_fuente_de_poder_atx.jpg
+                discos_y_almacenamiento_seagate_seagate_1tb_hdd.jpg
+                switches_netgear_netgear_gs108.jpg
+                teclados_y_ratones_logitech_teclado_logitech_k120.jpg
+
+++++++++codigos Backend*******
+
+/src/aut/index.js
+
+const jwt = require("jsonwebtoken");
+config = require("../config");
+
+const clave = config.jwt.clave;
+
+function asignartoken(data) {
+  return jwt.sign(data, clave, {
+    expiresIn: config.jwt.tiempoExpiracion,
+  });
+}
+module.exports = asignartoken;
+
+/src/DB/mysql.js
+const mysql = require("mysql");
+const config = require("../config");
+
+const dbconfig = {
+  host: config.mysql.host,
+  user: config.mysql.user,
+  password: config.mysql.password,
+  database: config.mysql.database,
+};
+
+let conexion;
+
+function conmysql() {
+  conexion = mysql.createConnection(dbconfig);
+
+  conexion.connect((err) => {
+    if (err) {
+      console.log("Error de conexión a MySQL:", err);
+      setTimeout(conmysql, 1000);
+    } else {
+      console.log("Conexión a MySQL establecida");
+    }
+  });
+
+  conexion.on("error", (err) => {
+    console.log("Error en la conexión a MySQL:", err);
+    if (err.code === "PROTOCOL_CONNECTION_LOST") {
+      setTimeout(conmysql, 1000);
+    }
+  });
+}
+
+conmysql();
+
+function todos(tabla) {
+  return new Promise((resolve, reject) => {
+    conexion.query(`SELECT * FROM ${tabla}`, (error, results) => {
+      return error ? reject(error) : resolve(results);
+    });
+  });
+}
+
+function uno(tabla, id) {
+  return new Promise((resolve, reject) => {
+    conexion.query(
+      `SELECT * FROM ${tabla} WHERE id = ?`,
+      [id],
+      (error, results) => {
+        return error ? reject(error) : resolve(results[0]);
+      }
+    );
+  });
+}
+
+function agregar(tabla, data) {
+  return new Promise((resolve, reject) => {
+    conexion.query(
+      `INSERT INTO ${tabla} SET ? ON DUPLICATE KEY UPDATE ?`,
+      [data, data],
+      (error, results) => {
+        return error ? reject(error) : resolve(results);
+      }
+    );
+  });
+}
+
+function eliminar(tabla, data) {
+  return new Promise((resolve, reject) => {
+    conexion.query(
+      `DELETE FROM ${tabla} WHERE id = ?`,
+      [data.id],
+      (error, results) => {
+        return error ? reject(error) : resolve(results);
+      }
+    );
+  });
+}
+
+function query(tabla, consulta) {
+  return new Promise((resolve, reject) => {
+    conexion.query(
+      `SELECT * FROM ${tabla} WHERE id = ?`,
+      [consulta],
+      (error, results) => {
+        return error ? reject(error) : resolve(results[0]);
+      }
+    );
+  });
+}
+
+// 🔍 Nueva función para buscar por campo específico (para login)
+function buscar(tabla, campo, valor) {
+  return new Promise((resolve, reject) => {
+    conexion.query(
+      `SELECT * FROM ${tabla} WHERE ${campo} = ? LIMIT 1`,
+      [valor],
+      (error, results) => {
+        return error ? reject(error) : resolve(results[0]);
+      }
+    );
+  });
+}
+
+function getConnection() {
+  const conn = mysql.createConnection({
+    host: config.mysql.host,
+    user: config.mysql.user,
+    password: config.mysql.password,
+    database: config.mysql.database,
+    multipleStatements: false,
+  });
+
+  // envolver en Promise para conexión asincrónica si lo prefieres
+  return {
+    conn,
+    beginTransaction: () =>
+      new Promise((resolve, reject) => conn.beginTransaction((err) => (err ? reject(err) : resolve()))),
+    commit: () =>
+      new Promise((resolve, reject) => conn.commit((err) => (err ? reject(err) : resolve()))),
+    rollback: () =>
+      new Promise((resolve) => conn.rollback(() => resolve())),
+    query: (sql, params) =>
+      new Promise((resolve, reject) => conn.query(sql, params, (err, results) => (err ? reject(err) : resolve(results)))),
+    release: () => conn.end(),
+  };
+}
+
+module.exports.getConnection = getConnection;
+
+// Para consultas personalizadas (como joins)
+function consultaDirecta(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    conexion.query(sql, params, (error, results) => {
+      return error ? reject(error) : resolve(results);
+    });
+  });
+}
+
+module.exports = {
+  todos,
+  uno,
+  agregar,
+  eliminar,
+  query,
+  buscar,
+  getConnection,
+  consultaDirecta,};
+
+/src/middleware/cors.js
+
+// middleware/cors.js
+const cors = require('cors');
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir localhost y tu IP para desarrollo
+    const allowedOrigins = [
+      'http://localhost:5000',
+      'http://127.0.0.1:5000',
+      'http://10.192.84.125:5000', // Tu IP para desarrollo web
+      'http://localhost:58741'
+    ];
+    
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+};
+
+module.exports = cors(corsOptions);
+
+/scr/middleware/error.js
+
+const jwt = require("jsonwebtoken");
+const config = require("../config");
+
+const clave = config.jwt.clave;
+
+/**
+ * Asigna un token JWT al usuario autenticado.
+ * Incluye los campos id, username, rol y bodega.
+ * 
+ * @param {Object} usuario - Datos del usuario autenticado.
+ * @returns {String} token firmado.
+ */
+function asignartoken(usuario) {
+  // Validar que tenga los campos esperados
+  const payload = {
+    id: usuario.id,
+    username: usuario.username,
+    rol: usuario.rol,
+    bodega: usuario.bodega || null, // puede ser null si no tiene bodega asignada
+  };
+
+  return jwt.sign(payload, clave, {
+    expiresIn: config.jwt.tiempoExpiracion,
+  });
+}
+
+module.exports = asignartoken;
+
+/srs/modulos/actas/controlador.js
+const TABLA_ACTAS = "actas";
+const TABLA_ACTA_DETALLES = "acta_detalles";
+const TABLA_INVENTARIO = "inventario";
+const TABLA_ARTICULOS = "articulos";
+const TABLA_USUARIOS = "usuarios";
+const TABLA_PERSONAL = "personal";
+const TABLA_TECNICOS = "tecnicos";
+const TABLA_SITIOS_VENTA = "sitios_venta";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+  // 📋 LISTAR ACTAS CON PAGINACIÓN Y FILTROS
+  async function listarActas(usuario, queryParams = {}) {
+    try {
+      const { page = 1, limit = 20, tipo = '', fecha_desde = '', fecha_hasta = '' } = queryParams;
+      const offset = (page - 1) * limit;
+
+      let sql = `
+        SELECT SQL_CALC_FOUND_ROWS
+          a.id,
+          a.tipo,
+          a.descripcion,
+          a.fecha,
+          a.archivo_pdf,
+          
+          -- Información del usuario creador
+          uc.nombre_completo as creador_nombre,
+          uc.username as creador_username,
+          
+          -- Información del personal involucrado
+          ep.nombre as entregado_por_nombre,
+          rp.nombre as recibido_por_nombre,
+          ap.nombre as auditor_nombre,
+          
+          -- Contador de items en el acta
+          (SELECT COUNT(*) FROM acta_detalles ad WHERE ad.acta_id = a.id) as total_items,
+          
+          -- Fecha formateada
+          DATE_FORMAT(a.fecha, '%d/%m/%Y %H:%i') as fecha_formateada
+          
+        FROM ${TABLA_ACTAS} a
+        LEFT JOIN ${TABLA_USUARIOS} uc ON a.usuario_creador_id = uc.id
+        LEFT JOIN ${TABLA_PERSONAL} ep ON a.entregado_por_id = ep.id
+        LEFT JOIN ${TABLA_PERSONAL} rp ON a.recibido_por_id = rp.id
+        LEFT JOIN ${TABLA_PERSONAL} ap ON a.auditor_id = ap.id
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      // 🔒 Filtro de seguridad por bodega (si no es admin)
+      if (usuario.rol !== "administrador") {
+        // Solo actas donde el usuario creador es el mismo o está relacionado con su bodega
+        sql += ` AND a.usuario_creador_id = ?`;
+        params.push(usuario.id);
+      }
+
+      // 🔍 Filtros opcionales
+      if (tipo) {
+        sql += ` AND a.tipo = ?`;
+        params.push(tipo);
+      }
+
+      if (fecha_desde) {
+        sql += ` AND DATE(a.fecha) >= ?`;
+        params.push(fecha_desde);
+      }
+
+      if (fecha_hasta) {
+        sql += ` AND DATE(a.fecha) <= ?`;
+        params.push(fecha_hasta);
+      }
+
+      sql += ` ORDER BY a.fecha DESC, a.id DESC LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), offset);
+
+      // Ejecutar consulta
+      const actas = await db.consultaDirecta(sql, params);
+      
+      // Obtener total
+      const countResult = await db.consultaDirecta('SELECT FOUND_ROWS() as total');
+      const total = countResult[0].total;
+
+      return {
+        actas,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR en listarActas:", error);
+      throw error;
+    }
+  }
+
+  // 🔍 OBTENER DETALLES COMPLETOS DE UN ACTA
+  async function obtenerActaCompleta(actaId, usuario) {
+    try {
+      // 1. Obtener información base del acta
+      const actaSql = `
+        SELECT 
+          a.*,
+          uc.nombre_completo as creador_nombre,
+          uc.username as creador_username,
+          ep.nombre as entregado_por_nombre,
+          rp.nombre as recibido_por_nombre,
+          ap.nombre as auditor_nombre,
+          DATE_FORMAT(a.fecha, '%d/%m/%Y a las %H:%i') as fecha_formateada
+        FROM ${TABLA_ACTAS} a
+        LEFT JOIN ${TABLA_USUARIOS} uc ON a.usuario_creador_id = uc.id
+        LEFT JOIN ${TABLA_PERSONAL} ep ON a.entregado_por_id = ep.id
+        LEFT JOIN ${TABLA_PERSONAL} rp ON a.recibido_por_id = rp.id
+        LEFT JOIN ${TABLA_PERSONAL} ap ON a.auditor_id = ap.id
+        WHERE a.id = ?
+      `;
+
+      const actaResult = await db.consultaDirecta(actaSql, [actaId]);
+      
+      if (actaResult.length === 0) {
+        throw new Error("Acta no encontrada");
+      }
+
+      const acta = actaResult[0];
+
+      // 🔒 Verificar permisos (solo admin o usuario creador)
+      if (usuario.rol !== "administrador" && acta.usuario_creador_id !== usuario.id) {
+        throw new Error("No tienes permiso para ver este acta");
+      }
+
+      // 2. Obtener detalles del acta
+      const detallesSql = `
+        SELECT 
+          ad.*,
+          i.placa,
+          i.serial,
+          i.estado as estado_actual,
+          i.bodega,
+          i.ubicacion_detallada,
+          a.referencia as articulo_referencia,
+          a.descripcion as articulo_descripcion,
+          a.tipo_articulo,
+          c.nombre as categoria_nombre,
+          m.nombre as marca_nombre,
+          
+          -- Información adicional según el tipo de acta
+          CASE 
+            WHEN act.tipo = 'ASIGNACION' THEN (
+              SELECT CONCAT(t.nombre_completo, ' - ', sv.sitio_venta)
+              FROM asignaciones asig
+              LEFT JOIN tecnicos t ON asig.tecnico_id = t.id
+              LEFT JOIN sitios_venta sv ON asig.sitio_venta_id = sv.id
+              WHERE asig.inventario_id = ad.inventario_id 
+              AND asig.fecha_asignacion >= act.fecha
+              LIMIT 1
+            )
+            WHEN act.tipo = 'TRANSFERENCIA' THEN (
+              SELECT CONCAT('De: ', t.bodega_origen, ' a: ', t.bodega_destino)
+              FROM transferencias_bodegas t
+              WHERE t.inventario_id = ad.inventario_id 
+              AND t.acta_id = act.id
+              LIMIT 1
+            )
+            WHEN act.tipo = 'DEVOLUCION' THEN (
+              SELECT CONCAT('Estado: ', d.estado_equipo, ' - ', COALESCE(d.motivo_devolucion, ''))
+              FROM devoluciones d
+              WHERE d.asignacion_id IN (
+                SELECT asig.id FROM asignaciones asig 
+                WHERE asig.inventario_id = ad.inventario_id
+              )
+              AND d.fecha_devolucion >= act.fecha
+              LIMIT 1
+            )
+            ELSE NULL
+          END as informacion_adicional
+          
+        FROM ${TABLA_ACTA_DETALLES} ad
+        INNER JOIN ${TABLA_INVENTARIO} i ON ad.inventario_id = i.id
+        INNER JOIN ${TABLA_ARTICULOS} a ON i.articulo_id = a.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        INNER JOIN ${TABLA_ACTAS} act ON ad.acta_id = act.id
+        WHERE ad.acta_id = ?
+        ORDER BY a.referencia, i.placa
+      `;
+
+      const detalles = await db.consultaDirecta(detallesSql, [actaId]);
+
+      // 3. Obtener estadísticas del acta
+      const estadisticasSql = `
+        SELECT 
+          COUNT(*) as total_items,
+          COUNT(DISTINCT a.tipo_articulo) as tipos_articulo,
+          COUNT(DISTINCT i.bodega) as bodegas_afectadas,
+          GROUP_CONCAT(DISTINCT a.tipo_articulo) as lista_tipos
+        FROM ${TABLA_ACTA_DETALLES} ad
+        INNER JOIN ${TABLA_INVENTARIO} i ON ad.inventario_id = i.id
+        INNER JOIN ${TABLA_ARTICULOS} a ON i.articulo_id = a.id
+        WHERE ad.acta_id = ?
+      `;
+
+      const estadisticas = await db.consultaDirecta(estadisticasSql, [actaId]);
+
+      return {
+        acta: {
+          ...acta,
+          estadisticas: estadisticas[0] || {}
+        },
+        detalles: detalles
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR en obtenerActaCompleta:", error);
+      throw error;
+    }
+  }
+
+  // 📊 OBTENER ESTADÍSTICAS DE ACTAS
+  async function obtenerEstadisticasActas(usuario, filtros = {}) {
+    try {
+      const { fecha_desde = '', fecha_hasta = '' } = filtros;
+
+      let sql = `
+        SELECT 
+          tipo,
+          COUNT(*) as total_actas,
+          SUM(
+            (SELECT COUNT(*) FROM acta_detalles ad WHERE ad.acta_id = a.id)
+          ) as total_items,
+          MIN(fecha) as fecha_primer_acta,
+          MAX(fecha) as fecha_ultima_acta
+        FROM ${TABLA_ACTAS} a
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      // 🔒 Filtro de seguridad
+      if (usuario.rol !== "administrador") {
+        sql += ` AND usuario_creador_id = ?`;
+        params.push(usuario.id);
+      }
+
+      // Filtros de fecha
+      if (fecha_desde) {
+        sql += ` AND DATE(fecha) >= ?`;
+        params.push(fecha_desde);
+      }
+
+      if (fecha_hasta) {
+        sql += ` AND DATE(fecha) <= ?`;
+        params.push(fecha_hasta);
+      }
+
+      sql += ` GROUP BY tipo ORDER BY total_actas DESC`;
+
+      const estadisticas = await db.consultaDirecta(sql, params);
+
+      // Estadísticas generales
+      const generalSql = `
+        SELECT 
+          COUNT(*) as total_actas,
+          COUNT(DISTINCT usuario_creador_id) as usuarios_activos,
+          SUM(
+            (SELECT COUNT(*) FROM acta_detalles ad WHERE ad.acta_id = a.id)
+          ) as total_items_movidos,
+          MIN(fecha) as fecha_inicio_sistema,
+          MAX(fecha) as fecha_ultima_actividad
+        FROM ${TABLA_ACTAS} a
+        WHERE 1=1
+      `;
+
+      const generalParams = [];
+      if (usuario.rol !== "administrador") {
+        generalSql += ` AND usuario_creador_id = ?`;
+        generalParams.push(usuario.id);
+      }
+
+      const general = await db.consultaDirecta(generalSql, generalParams);
+
+      return {
+        por_tipo: estadisticas,
+        general: general[0] || {}
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR en obtenerEstadisticasActas:", error);
+      throw error;
+    }
+  }
+
+  // 🎛️ OBTENER FILTROS DISPONIBLES PARA ACTAS
+  async function obtenerFiltrosDisponibles(usuario) {
+    try {
+      let sql = `
+        SELECT 
+          tipo,
+          COUNT(*) as cantidad
+        FROM ${TABLA_ACTAS} 
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      if (usuario.rol !== "administrador") {
+        sql += ` AND usuario_creador_id = ?`;
+        params.push(usuario.id);
+      }
+
+      sql += ` GROUP BY tipo ORDER BY tipo`;
+
+      const tipos = await db.consultaDirecta(sql, params);
+
+      // Obtener rangos de fechas
+      const fechasSql = `
+        SELECT 
+          MIN(DATE(fecha)) as fecha_minima,
+          MAX(DATE(fecha)) as fecha_maxima
+        FROM ${TABLA_ACTAS} 
+        WHERE 1=1
+      `;
+
+      const fechasParams = [];
+      if (usuario.rol !== "administrador") {
+        fechasSql += ` AND usuario_creador_id = ?`;
+        fechasParams.push(usuario.id);
+      }
+
+      const fechas = await db.consultaDirecta(fechasSql, fechasParams);
+
+      return {
+        tipos: tipos.map(t => t.tipo),
+        fechas: fechas[0] || { fecha_minima: null, fecha_maxima: null }
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR en obtenerFiltrosDisponibles:", error);
+      throw error;
+    }
+  }
+
+  // 📄 GENERAR PDF DEL ACTA (placeholder - integración futura)
+  async function generarPdfActa(actaId, usuario) {
+    try {
+      // Primero verificar permisos
+      const actaSql = `SELECT * FROM ${TABLA_ACTAS} WHERE id = ?`;
+      const acta = await db.consultaDirecta(actaSql, [actaId]);
+
+      if (acta.length === 0) {
+        throw new Error("Acta no encontrada");
+      }
+
+      if (usuario.rol !== "administrador" && acta[0].usuario_creador_id !== usuario.id) {
+        throw new Error("No tienes permiso para generar PDF de este acta");
+      }
+
+      // Por ahora retornamos información para el PDF
+      // En una implementación real, aquí se integraría con una librería de PDF
+      return {
+        success: true,
+        message: "PDF generado exitosamente (simulación)",
+        acta_id: actaId,
+        pdf_url: `/api/actas/${actaId}/pdf`, // Endpoint ficticio para el PDF
+        datos_acta: {
+          ...acta[0],
+          fecha_generacion: new Date().toISOString()
+        }
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR en generarPdfActa:", error);
+      throw error;
+    }
+  }
+
+  return {
+    listarActas,
+    obtenerActaCompleta,
+    obtenerEstadisticasActas,
+    obtenerFiltrosDisponibles,
+    generarPdfActa
+  };
+};
+
+/srs/modulos/actas/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// 📋 LISTAR ACTAS
+router.get(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  listarActas
+);
+
+// 🔍 OBTENER ACTA COMPLETA
+router.get(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  obtenerActaCompleta
+);
+
+// 📊 ESTADÍSTICAS DE ACTAS
+router.get(
+  "/estadisticas/generales",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  obtenerEstadisticas
+);
+
+// 🎛️ FILTROS DISPONIBLES
+router.get(
+  "/filtros/disponibles",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  obtenerFiltrosDisponibles
+);
+
+// 📄 GENERAR PDF
+router.post(
+  "/:id/generar-pdf",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  generarPdf
+);
+
+// ---------------------------
+// Controladores HTTP
+// ---------------------------
+
+async function listarActas(req, res, next) {
+  try {
+    const resultado = await controlador.listarActas(req.user, req.query);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error listando actas:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function obtenerActaCompleta(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resultado = await controlador.obtenerActaCompleta(parseInt(id), req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo acta:', error);
+    
+    if (error.message.includes('No tienes permiso')) {
+      respuesta.error(req, res, error.message, 403);
+    } else if (error.message.includes('no encontrada')) {
+      respuesta.error(req, res, error.message, 404);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
+  }
+}
+
+async function obtenerEstadisticas(req, res, next) {
+  try {
+    const resultado = await controlador.obtenerEstadisticasActas(req.user, req.query);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo estadísticas:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function obtenerFiltrosDisponibles(req, res, next) {
+  try {
+    const resultado = await controlador.obtenerFiltrosDisponibles(req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo filtros:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function generarPdf(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resultado = await controlador.generarPdfActa(parseInt(id), req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error generando PDF:', error);
+    
+    if (error.message.includes('No tienes permiso')) {
+      respuesta.error(req, res, error.message, 403);
+    } else if (error.message.includes('no encontrada')) {
+      respuesta.error(req, res, error.message, 404);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/articulos/controlador.js
+
+const TABLA_CATEGORIAS = "categorias";
+const TABLA_MARCAS = "marcas";
+const TABLA_ARTICULOS = "articulos";
+
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+ async function agregar(data) {
+  try {
+    console.log("📥 DATOS RECIBIDOS EN AGREGAR ARTÍCULO:", data);
+
+    let articuloId;
+
+    if (data.articulo_id) {
+      // ACTUALIZAR artículo existente
+      console.log("🔄 ACTUALIZANDO ARTÍCULO EXISTENTE - ID:", data.articulo_id);
+
+      const queryArticulo = `UPDATE ${TABLA_ARTICULOS} 
+                            SET categoria_id = ?, 
+                                marca_id = ?,
+                                tipo_bodega = ?, 
+                                es_activo = ?,
+                                tipo_articulo = ?,
+                                referencia = ?,
+                                descripcion = ?,
+                                imagen_path = ?
+                            WHERE id = ?`;
+
+      const valuesArticulo = [
+        data.categoria_id,
+        data.marca_id,
+        data.tipo_bodega,
+        data.es_activo,
+        data.tipo_articulo,
+        data.referencia,
+        data.descripcion,
+        data.imagen_path,
+        data.articulo_id,
+      ];
+
+      await db.consultaDirecta(queryArticulo, valuesArticulo);
+      articuloId = data.articulo_id;
+
+    } else {
+      // CREAR nuevo artículo
+      console.log("🆕 CREANDO NUEVO ARTÍCULO");
+
+      const queryArticulo = `INSERT INTO ${TABLA_ARTICULOS} 
+        (categoria_id, marca_id, tipo_bodega, es_activo, tipo_articulo, referencia, descripcion, imagen_path) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      const valuesArticulo = [
+        data.categoria_id,
+        data.marca_id,
+        data.tipo_bodega,
+        data.es_activo,
+        data.tipo_articulo,
+        data.referencia,
+        data.descripcion,
+        data.imagen_path,
+      ];
+
+      const resultado = await db.consultaDirecta(queryArticulo, valuesArticulo);
+      articuloId = resultado.insertId;
+    }
+
+    console.log("✅ ARTÍCULO GUARDADO - ID:", articuloId);
+    return {
+      message: "Artículo guardado correctamente",
+      articulo_id: articuloId,
+    };
+
+  } catch (error) {
+    console.error("❌ ERROR EN AGREGAR ARTÍCULO:", error);
+    throw error;
+  }
+}
+
+  async function eliminar(articulo_id) {
+  try {
+    const id = parseInt(articulo_id, 10);
+
+    if (!id || isNaN(id)) {
+      throw new Error("ID de artículo inválido");
+    }
+
+    console.log("🗑️ ELIMINANDO ARTÍCULO ID:", id);
+    
+    await db.consultaDirecta(`DELETE FROM ${TABLA_ARTICULOS} WHERE id = ?`, [id]);
+
+    return { message: "Artículo eliminado correctamente" };
+  } catch (error) {
+    console.error("❌ ERROR EN ELIMINAR ARTÍCULO:", error);
+    throw error;
+  }
+}
+
+  async function todos() {
+    try {
+      console.log("📋 SOLICITANDO TODOS LOS ARTÍCULOS");
+      
+      const sql = `
+      SELECT 
+        a.id AS articulo_id,
+        a.referencia,
+        a.tipo_bodega,
+        a.tipo_articulo,
+        a.es_activo,
+        a.descripcion,
+        a.imagen_path,
+        a.creado_en,
+        c.id AS categoria_id,
+        c.nombre AS categoria_nombre,
+        m.id AS marca_id,
+        m.nombre AS marca_nombre
+      FROM ${TABLA_ARTICULOS} a
+      INNER JOIN ${TABLA_CATEGORIAS} c ON a.categoria_id = c.id
+      INNER JOIN ${TABLA_MARCAS} m ON a.marca_id = m.id
+      ORDER BY a.id DESC
+      `;
+      
+      const resultado = await db.consultaDirecta(sql);
+      console.log(`✅ SE OBTUVIERON ${resultado.length} ARTÍCULOS`);
+      return resultado;
+    } catch (error) {
+      console.error("❌ ERROR EN TODOS ARTÍCULOS:", error);
+      throw error;
+    }
+  }
+
+  async function uno(id) {
+    try {
+      console.log("🔍 SOLICITANDO ARTÍCULO ID:", id);
+      
+      const sql = `
+      SELECT 
+         a.id AS articulo_id,
+        a.referencia,
+        a.tipo_bodega,
+        a.tipo_articulo,
+        a.es_activo,
+        a.descripcion,
+        a.imagen_path,
+        a.creado_en,
+        c.id AS categoria_id,
+        c.nombre AS categoria_nombre,
+        m.id AS marca_id,
+        m.nombre AS marca_nombre
+      FROM ${TABLA_ARTICULOS} a
+      INNER JOIN ${TABLA_CATEGORIAS} c ON a.categoria_id = c.id
+      INNER JOIN ${TABLA_MARCAS} m ON a.marca_id = m.id
+      WHERE a.id = ${id}
+      `;
+      
+      const resultado = await db.consultaDirecta(sql);
+      return resultado.length > 0 ? resultado[0] : null;
+    } catch (error) {
+      console.error("❌ ERROR EN UNO ARTÍCULO:", error);
+      throw error;
+    }
+  }
+
+  return { 
+    agregar, 
+    eliminar, 
+    todos, 
+    uno
+  };
+};
+
+/srs/modulos/articulos/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// Listar todos los artículos
+router.get(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "consultor"),
+  todos
+);
+
+// Agregar o modificar artículo
+router.post(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  agregar
+);
+
+// Eliminar artículo
+router.delete("/:id", verificarToken, permitirRoles("administrador"), eliminar);
+
+// Obtener un artículo específico
+router.get("/:id", verificarToken, permitirRoles("administrador", "bodeguero", "consultor"), uno);
+
+async function todos(req, res, next) {
+  try {
+    const data = await controlador.todos();
+    respuesta.success(req, res, data, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const items = await controlador.uno(req.params.id);
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    console.log("🔄 DATOS RECIBIDOS EN RUTA ARTÍCULOS:");
+    console.log("   categoria_id:", req.body.categoria_id);
+    console.log("   marca_id:", req.body.marca_id);
+    
+    const data = await controlador.agregar(req.body);
+    respuesta.success(req, res, data, 201);
+  } catch (error) {
+    console.error("❌ ERROR en ruta agregar artículo:", error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function eliminar(req, res, next) {
+  try {
+    const data = await controlador.eliminar(req.params.id);
+    respuesta.success(req, res, data, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+/srs/modulos/asignaciones/controlador.js
+
+const TABLA_ASIGNACIONES = "asignaciones";
+const TABLA_INVENTARIO = "inventario";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+  // 📋 Listar asignaciones activas - CORREGIDO SIN ERRORES DE SINTAXIS
+  async function todos(usuario, queryParams = {}) {
+    try {
+      const { page = 1, limit = 50, tecnico_id = '', estado = '' } = queryParams;
+      const offset = (page - 1) * limit;
+
+      // ✅ CORREGIDO: Sin comentarios con // que rompan la sintaxis SQL
+      let sql = `
+        SELECT SQL_CALC_FOUND_ROWS
+          a.id,
+          a.fecha_asignacion,
+          a.estado,
+          a.observaciones,
+          
+          -- Info del técnico (usar personal)
+          p.id as tecnico_id,
+          p.nombre as tecnico_nombre,
+          p.identificacion as tecnico_identificacion,
+          
+          -- Info del inventario
+          i.id as inventario_id,
+          i.placa,
+          i.serial,
+          i.estado as estado_equipo,
+          i.estado_asignacion,
+          
+          -- Info del artículo
+          ar.referencia as articulo_referencia,
+          ar.descripcion as articulo_descripcion,
+          ar.tipo_articulo,
+          
+          -- Info del sitio de venta
+          sv.id as sitio_venta_id,
+          sv.codigo_sv,
+          sv.sitio_venta,
+          sv.direccion,
+          sv.ciudad,
+          sv.barrio,
+          sv.latitud,
+          sv.longitud,
+          
+          -- Info del usuario que asignó
+          u.nombre_completo as asignador_nombre
+          
+        FROM ${TABLA_ASIGNACIONES} a
+        INNER JOIN personal p ON a.tecnico_id = p.id AND p.tipo = 'tecnico' AND p.activo = 1
+        INNER JOIN inventario i ON a.inventario_id = i.id
+        INNER JOIN articulos ar ON i.articulo_id = ar.id
+        INNER JOIN sitios_venta sv ON a.sitio_venta_id = sv.id
+        INNER JOIN usuarios u ON a.usuario_asignador_id = u.id
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      // 🔒 Filtro de seguridad por bodega del usuario
+      if (usuario.rol !== "administrador" && usuario.bodega) {
+        sql += ` AND i.bodega = ?`;
+        params.push(usuario.bodega);
+      }
+
+      // 🔍 Filtros opcionales
+      if (tecnico_id) {
+        sql += ` AND a.tecnico_id = ?`;
+        params.push(tecnico_id);
+      }
+
+      if (estado) {
+        sql += ` AND a.estado = ?`;
+        params.push(estado);
+      }
+
+      sql += ` ORDER BY a.fecha_asignacion DESC LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), offset);
+
+      console.log('🔍 SQL Ejecutado:', sql);
+      console.log('🔍 Parámetros:', params);
+
+      const items = await db.consultaDirecta(sql, params);
+      const countResult = await db.consultaDirecta('SELECT FOUND_ROWS() as total');
+      const total = countResult[0].total;
+
+      return {
+        items,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      console.error("❌ ERROR AL CONSULTAR ASIGNACIONES:", error);
+      throw error;
+    }
+  }
+
+  // ➕ Crear nueva asignación - CORREGIDO
+  async function asignar(data, usuario) {
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+
+      // 1. Verificar que el item existe y está disponible
+      const itemSql = `
+        SELECT i.*, a.tipo_articulo 
+        FROM inventario i 
+        INNER JOIN articulos a ON i.articulo_id = a.id 
+        WHERE i.id = ? AND i.estado != 'Baja'
+      `;
+      const item = await connection.query(itemSql, [data.inventario_id]);
+      
+      if (!item.length) {
+        throw new Error("Item de inventario no encontrado o dado de baja");
+      }
+
+      if (item[0].estado_asignacion !== 'disponible') {
+        throw new Error(`El item no está disponible. Estado actual: ${item[0].estado_asignacion}`);
+      }
+
+      // 2. Verificar que el técnico existe y está activo
+      const tecnicoSql = `SELECT * FROM personal WHERE id = ? AND tipo = 'tecnico' AND activo = 1`;
+      const tecnico = await connection.query(tecnicoSql, [data.tecnico_id]);
+      
+      if (!tecnico.length) {
+        throw new Error("Técnico no encontrado o inactivo");
+      }
+
+      // 3. Verificar que el sitio de venta existe
+      const sitiosSql = `SELECT * FROM sitios_venta WHERE id = ?`;
+      const sitio = await connection.query(sitiosSql, [data.sitio_venta_id]);
+      
+      if (!sitio.length) {
+        throw new Error("Sitio de venta no encontrado");
+      }
+
+      // 4. Crear la asignación
+      const asignacionSql = `
+        INSERT INTO ${TABLA_ASIGNACIONES} 
+        (inventario_id, tecnico_id, sitio_venta_id, usuario_asignador_id, estado, observaciones, fecha_asignacion)
+        VALUES (?, ?, ?, ?, 'asignado', ?, NOW())
+      `;
+      
+      const resultado = await connection.query(asignacionSql, [
+        data.inventario_id,
+        data.tecnico_id,
+        data.sitio_venta_id,
+        usuario.id,
+        data.observaciones || null
+      ]);
+
+      // 5. Actualizar estado del inventario
+      const updateInventarioSql = `
+        UPDATE inventario 
+        SET estado_asignacion = 'asignado', fecha_actualizacion = NOW() 
+        WHERE id = ?
+      `;
+      await connection.query(updateInventarioSql, [data.inventario_id]);
+
+      await connection.commit();
+
+      return {
+        message: "Asignación creada correctamente",
+        id: resultado.insertId,
+        inventario_id: data.inventario_id
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("❌ ERROR AL CREAR ASIGNACIÓN:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // 🔄 Actualizar estado de asignación
+  async function actualizarEstado(id, nuevoEstado, usuario) {
+    try {
+      const estadosPermitidos = ['asignado', 'instalado', 'devuelto'];
+      
+      if (!estadosPermitidos.includes(nuevoEstado)) {
+        throw new Error("Estado no válido");
+      }
+
+      // Obtener la asignación actual
+      const asignacionSql = `SELECT * FROM ${TABLA_ASIGNACIONES} WHERE id = ?`;
+      const asignacion = await db.consultaDirecta(asignacionSql, [id]);
+      
+      if (!asignacion.length) {
+        throw new Error("Asignación no encontrada");
+      }
+
+      const asignacionActual = asignacion[0];
+
+      // Actualizar estado de la asignación
+      const updateAsignacionSql = `
+        UPDATE ${TABLA_ASIGNACIONES} 
+        SET estado = ?, fecha_actualizacion = NOW() 
+        WHERE id = ?
+      `;
+      await db.consultaDirecta(updateAsignacionSql, [nuevoEstado, id]);
+
+      // Si se devuelve, marcar el inventario como disponible
+      if (nuevoEstado === 'devuelto') {
+        const updateInventarioSql = `
+          UPDATE inventario 
+          SET estado_asignacion = 'disponible', fecha_actualizacion = NOW() 
+          WHERE id = ?
+        `;
+        await db.consultaDirecta(updateInventarioSql, [asignacionActual.inventario_id]);
+      }
+
+      return {
+        message: `Asignación actualizada a: ${nuevoEstado}`,
+        id: parseInt(id),
+        nuevo_estado: nuevoEstado
+      };
+
+    } catch (error) {
+      console.error("❌ ERROR AL ACTUALIZAR ASIGNACIÓN:", error);
+      throw error;
+    }
+  }
+
+  // 📊 Obtener items disponibles para asignación
+  async function inventarioDisponible(usuario, queryParams = {}) {
+    try {
+      const { tipo_articulo = '', categoria = '' } = queryParams;
+
+      let sql = `
+        SELECT 
+          i.id,
+          i.placa,
+          i.serial,
+          i.estado,
+          i.estado_asignacion,
+          i.bodega,
+          i.ubicacion_detallada,
+          
+          a.referencia as articulo_referencia,
+          a.descripcion as articulo_descripcion,
+          a.tipo_articulo,
+          
+          c.nombre as categoria_nombre,
+          m.nombre as marca_nombre
+          
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        WHERE i.estado != 'Baja' 
+        AND i.estado_asignacion = 'disponible'
+      `;
+
+      const params = [];
+
+      // 🔒 Filtro de seguridad por bodega
+      if (usuario.rol !== "administrador" && usuario.bodega) {
+        sql += ` AND i.bodega = ?`;
+        params.push(usuario.bodega);
+      }
+
+      // 🔍 Filtros adicionales
+      if (tipo_articulo) {
+        sql += ` AND a.tipo_articulo = ?`;
+        params.push(tipo_articulo);
+      }
+
+      if (categoria) {
+        sql += ` AND c.nombre = ?`;
+        params.push(categoria);
+      }
+
+      sql += ` ORDER BY a.referencia, i.placa`;
+
+      const items = await db.consultaDirecta(sql, params);
+
+      return { items };
+
+    } catch (error) {
+      console.error("❌ ERROR AL CONSULTAR INVENTARIO DISPONIBLE:", error);
+      throw error;
+    }
+  }
+
+  return {
+    todos,
+    asignar,
+    actualizarEstado,
+    inventarioDisponible
+  };
+};
+
+/srs/modulos/asignaciones/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// ✅ CORREGIDO: Importar la base de datos e inicializar el controlador
+const db = require("../../DB/mysql");
+const controlador = require("./controlador")(db); // 👈 Pasar la base de datos al controlador
+
+// 📋 Listar asignaciones
+router.get(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "tecnico"),
+  listarAsignaciones
+);
+
+// ➕ Crear nueva asignación
+router.post(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  crearAsignacion
+);
+
+// 🔄 Actualizar estado de asignación
+router.patch(
+  "/:id/estado",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "tecnico"),
+  actualizarEstadoAsignacion
+);
+
+// 📊 Obtener inventario disponible para asignación
+router.get(
+  "/inventario/disponible",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  obtenerInventarioDisponible
+);
+
+// ---------------------------
+// Controladores HTTP
+// ---------------------------
+
+// 📋 Listar asignaciones
+async function listarAsignaciones(req, res, next) {
+  try {
+    console.log('📥 Query params para asignaciones:', req.query);
+    const resultado = await controlador.todos(req.user, req.query);
+    
+    // ✅ Estructura consistente para el frontend
+    respuesta.success(req, res, {
+      items: resultado.items,
+      pagination: resultado.pagination
+    }, 200);
+    
+  } catch (error) {
+    console.error('❌ Error en listar asignaciones:', error);
+    
+    // Manejar errores específicos de SQL
+    if (error.code === 'ER_PARSE_ERROR') {
+      respuesta.error(req, res, 'Error en la consulta de base de datos', 500);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
+  }
+}
+
+// ➕ Crear nueva asignación
+async function crearAsignacion(req, res, next) {
+  try {
+    // Validaciones básicas
+    const { inventario_id, tecnico_id, sitio_venta_id } = req.body;
+    
+    if (!inventario_id || !tecnico_id || !sitio_venta_id) {
+      return respuesta.error(req, res, "Datos incompletos: inventario_id, tecnico_id y sitio_venta_id son requeridos", 400);
+    }
+
+    const resultado = await controlador.asignar(req.body, req.user);
+    respuesta.success(req, res, resultado, 201);
+  } catch (error) {
+    console.error('❌ Error al crear asignación:', error);
+    
+    // Manejar errores específicos
+    if (error.message.includes('no está disponible') || 
+        error.message.includes('no encontrado')) {
+      respuesta.error(req, res, error.message, 400);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
+  }
+}
+
+// 🔄 Actualizar estado de asignación
+async function actualizarEstadoAsignacion(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado) {
+      return respuesta.error(req, res, "El campo 'estado' es requerido", 400);
+    }
+
+    const resultado = await controlador.actualizarEstado(id, estado, req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error al actualizar estado de asignación:', error);
+    
+    if (error.message.includes('no válido') || 
+        error.message.includes('no encontrada')) {
+      respuesta.error(req, res, error.message, 400);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
+  }
+}
+
+// 📊 Obtener inventario disponible - ✅ CORREGIDO
+async function obtenerInventarioDisponible(req, res, next) {
+  try {
+    console.log('🔍 Consultando inventario disponible para asignación');
+    const resultado = await controlador.inventarioDisponible(req.user, req.query);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error al obtener inventario disponible:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+/srs/modulos/auth/controlador.js
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const TABLA = "usuarios";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) {
+    db = require("../../DB/mysql");
+  }
+
+  async function login(username, password) {
+    // 🔍 Buscar usuario por username
+    const usuario = await db.buscar(TABLA, "username", username);
+
+    if (!usuario) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    if (!usuario.activo) {
+      throw new Error("Cuenta inactiva");
+    }
+
+    // 🔐 Verificar contraseña usando el campo 'password_hash'
+    const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+    if (!passwordValida) {
+      throw new Error("Contraseña incorrecta");
+    }
+
+    // 🧩 Crear token JWT con los campos completos
+    const payload = {
+      id: usuario.id,
+      username: usuario.username,
+      rol: usuario.rol,
+      bodega: usuario.bodega || null, // puede ser null si el usuario es solo de consulta
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET , {
+      expiresIn: "6h",
+    });
+
+    // ✅ Devolver datos útiles al frontend
+    return {
+      message: "Login exitoso",
+      token,
+      usuario: {
+        id: usuario.id,
+        nombre_completo: usuario.nombre_completo,
+        username: usuario.username,
+        rol: usuario.rol,
+        bodega: usuario.bodega || null,
+      },
+    };
+  }
+
+  return { login };
+};
+
+/srs/modulos/auth/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+
+router.post("/login", login);
+
+async function login(req, res, next) {
+  try {
+    const { username, password } = req.body;
+    const data = await controlador.login(username, password);
+    respuesta.success(req, res, data, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 401);
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/auth/middleware.js
+
+const jwt = require("jsonwebtoken");
+const config = require("../../config");
+
+// 🔐 Verifica que el usuario tenga un token JWT válido
+function verificarToken(req, res, next) {
+  const header = req.headers["authorization"];
+
+  if (!header) {
+    return res.status(401).json({ error: "Token no proporcionado" });
+  }
+
+  // Espera formato: Bearer <token>
+  const token = header.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Formato de token incorrecto" });
+  }
+
+  try {
+    // Verifica y decodifica el token
+    const decoded = jwt.verify(token, config.jwt.clave || process.env.JWT_SECRET );
+
+    // ✅ El token incluye: id, username, rol y bodega
+    req.user = {
+      id: decoded.id,
+      username: decoded.username,
+      rol: decoded.rol,
+      bodega: decoded.bodega ?? null, // puede venir null si es usuario consultor
+    };
+
+    next();
+  } catch (error) {
+    console.error("❌ Error al verificar token:", error.message);
+    return res.status(401).json({ error: "Token inválido o expirado" });
+  }
+}
+
+// 🔓 Verifica si el rol del usuario está autorizado para acceder a una ruta
+function permitirRoles(...rolesPermitidos) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "No autenticado" });
+    }
+
+    if (!rolesPermitidos.includes(req.user.rol)) {
+      return res.status(403).json({ error: "Acceso denegado: rol insuficiente" });
+    }
+
+    next();
+  };
+}
+
+module.exports = { verificarToken, permitirRoles };
+
+/srs/modulos/categorias/controlador.js
+
+const TABLA = "categorias";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) {
+    db = require("../../DB/mysql");
+  }
+  function todos() {
+    return db.todos(TABLA);
+  }
+
+  function uno(id) {
+    return db.uno(TABLA, id);
+  }
+
+  function agregar(data) {
+    return db.agregar(TABLA, data);
+  }
+
+  function eliminar(body) {
+    return db.eliminar(TABLA, body);
+  }
+  return {
+    todos,
+    uno,
+    agregar,
+    eliminar,
+  };
+};
+
+
+/srs/modulos/categorias/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+router.get("/",verificarToken, permitirRoles("administrador","bodegero"), todos);
+router.get("/:id",verificarToken, permitirRoles("administrador","bodegero"), uno);
+router.post("/",verificarToken, permitirRoles("administrador","bodegero"), agregar);
+router.put("/",verificarToken, permitirRoles("administrador","bodegero"), eliminar);
+
+async function todos(req, res, next) {
+  try {
+    const items = await controlador.todos();
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const items = await controlador.uno(req.params.id);
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    const items = await controlador.agregar(req.body);
+    if (req.body.id == 0) {
+      mensaje = "Item agregado satisfactoriamente";
+    } else {
+      mensaje = "Item actualizado satisfactoriamente";
+    }
+    respuesta.success(req, res, mensaje, 201);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function eliminar(req, res, next) {
+  try {
+    const items = await controlador.eliminar(req.body);
+    respuesta.success(req, res, "Item eliminado satisfactoriamente", 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/gestion/controlador.js
+
+const TABLA_ACTAS = "actas";
+const TABLA_ACTA_DETALLES = "acta_detalles";
+const TABLA_ASIGNACIONES = "asignaciones";
+const TABLA_DEVOLUCIONES = "devoluciones";
+const TABLA_TRANSFERENCIAS = "transferencias_bodegas";
+const TABLA_INVENTARIO = "inventario";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+  // 🎯 ASIGNACIÓN MASIVA DE ACTIVOS
+  async function asignacionMasiva(data, usuario) {
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+
+      // 1. Validaciones básicas
+      if (!data.tecnico_id || !data.sitio_venta_id || !data.inventario_ids || data.inventario_ids.length === 0) {
+        throw new Error("Datos incompletos para la asignación masiva");
+      }
+
+      // 2. Verificar que todos los items existen y están disponibles
+      const placeholders = data.inventario_ids.map(() => '?').join(',');
+      const inventarioSql = `
+        SELECT i.*, a.tipo_articulo 
+        FROM inventario i 
+        INNER JOIN articulos a ON i.articulo_id = a.id 
+        WHERE i.id IN (${placeholders}) AND i.estado != 'Baja'
+      `;
+      
+      const items = await connection.query(inventarioSql, data.inventario_ids);
+      
+      if (items.length !== data.inventario_ids.length) {
+        throw new Error("Algunos items no existen o están dados de baja");
+      }
+
+      // 3. Verificar que todos son ACTIVOS (no consumibles)
+      const itemsNoAptos = items.filter(item => 
+        !['Activo Fijo', 'Activo de Control'].includes(item.tipo_articulo)
+      );
+      
+      if (itemsNoAptos.length > 0) {
+        throw new Error("Solo se pueden asignar Activos Fijos y de Control");
+      }
+
+      // 4. Verificar que todos están disponibles
+      const itemsNoDisponibles = items.filter(item => 
+        item.estado_asignacion !== 'disponible'
+      );
+      
+      if (itemsNoDisponibles.length > 0) {
+        throw new Error("Algunos items no están disponibles para asignación");
+      }
+
+      // 5. Crear acta de asignación
+      const actaSql = `
+        INSERT INTO ${TABLA_ACTAS} 
+        (tipo, descripcion, fecha, usuario_creador_id, entregado_por_id, recibido_por_id)
+        VALUES ('ASIGNACION', ?, NOW(), ?, ?, ?)
+      `;
+      
+      const actaResult = await connection.query(actaSql, [
+        data.descripcion || `Asignación masiva a técnico ${data.tecnico_id}`,
+        usuario.id,
+        usuario.id, // entregado_por (mismo usuario)
+        data.tecnico_id
+      ]);
+
+      const actaId = actaResult.insertId;
+
+      // 6. Crear detalles de acta y asignaciones individuales
+      for (const item of items) {
+        // Acta detalle
+        const detalleSql = `
+          INSERT INTO ${TABLA_ACTA_DETALLES} 
+          (acta_id, inventario_id, estado_en_acta, comentarios)
+          VALUES (?, ?, ?, ?)
+        `;
+        await connection.query(detalleSql, [
+          actaId,
+          item.id,
+          item.estado,
+          data.observaciones || null
+        ]);
+
+        // Asignación
+        const asignacionSql = `
+          INSERT INTO ${TABLA_ASIGNACIONES} 
+          (inventario_id, tecnico_id, sitio_venta_id, usuario_asignador_id, estado, observaciones, fecha_asignacion)
+          VALUES (?, ?, ?, ?, 'asignado', ?, NOW())
+        `;
+        await connection.query(asignacionSql, [
+          item.id,
+          data.tecnico_id,
+          data.sitio_venta_id,
+          usuario.id,
+          data.observaciones || null
+        ]);
+
+        // Actualizar inventario
+        const updateInventarioSql = `
+          UPDATE inventario 
+          SET estado_asignacion = 'asignado', fecha_actualizacion = NOW() 
+          WHERE id = ?
+        `;
+        await connection.query(updateInventarioSql, [item.id]);
+      }
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: `Asignación masiva completada: ${items.length} items asignados`,
+        acta_id: actaId,
+        items_asignados: items.length
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("❌ ERROR en asignacionMasiva:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+// 🔄 TRANSFERENCIA SIMPLIFICADA - SIN VERIFICACIÓN
+async function solicitarTransferencia(data, usuario) {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+
+    // 1. Validaciones
+    if (!data.inventario_ids || data.inventario_ids.length === 0 || !data.bodega_destino) {
+      throw new Error("Datos incompletos para transferencia");
+    }
+
+    // 2. Verificar permisos de bodega
+    if (usuario.rol !== "administrador" && usuario.bodega !== data.bodega_origen) {
+      throw new Error("No tienes permiso para transferir desde esta bodega");
+    }
+
+    // 3. Verificar items existen y están en bodega origen
+    const placeholders = data.inventario_ids.map(() => '?').join(',');
+    const inventarioSql = `
+      SELECT * FROM inventario 
+      WHERE id IN (${placeholders}) AND bodega = ? AND estado != 'Baja'
+    `;
+    
+    const items = await connection.query(inventarioSql, [...data.inventario_ids, data.bodega_origen]);
+    
+    if (items.length !== data.inventario_ids.length) {
+      throw new Error("Algunos items no existen o no están en la bodega origen");
+    }
+
+    // 4. Crear acta de transferencia
+    const actaSql = `
+      INSERT INTO ${TABLA_ACTAS} 
+      (tipo, descripcion, fecha, usuario_creador_id, entregado_por_id)
+      VALUES ('TRANSFERENCIA', ?, NOW(), ?, ?)
+    `;
+    
+    const actaResult = await connection.query(actaSql, [
+      data.motivo || `Transferencia de ${data.bodega_origen} a ${data.bodega_destino}`,
+      usuario.id,
+      usuario.id
+    ]);
+
+    const actaId = actaResult.insertId;
+
+    // 5. ACTUALIZAR INVENTARIO INMEDIATAMENTE a bodega destino como "disponible"
+    for (const item of items) {
+      const updateInventarioSql = `
+        UPDATE inventario 
+        SET bodega = ?, estado_asignacion = 'disponible', fecha_actualizacion = NOW() 
+        WHERE id = ?
+      `;
+      await connection.query(updateInventarioSql, [
+        data.bodega_destino, // Se mueve inmediatamente
+        item.id
+      ]);
+
+      // Registrar transferencia como COMPLETADA
+      const transferenciaSql = `
+        INSERT INTO ${TABLA_TRANSFERENCIAS} 
+        (acta_id, inventario_id, bodega_origen, bodega_destino, cantidad, usuario_solicitante_id, estado, motivo)
+        VALUES (?, ?, ?, ?, ?, ?, 'completada', ?)
+      `;
+      await connection.query(transferenciaSql, [
+        actaId,
+        item.id,
+        data.bodega_origen,
+        data.bodega_destino,
+        item.cantidad,
+        usuario.id,
+        data.motivo || null
+      ]);
+
+      // Acta detalle
+      const detalleSql = `
+        INSERT INTO ${TABLA_ACTA_DETALLES} 
+        (acta_id, inventario_id, estado_en_acta, comentarios)
+        VALUES (?, ?, ?, ?)
+      `;
+      await connection.query(detalleSql, [
+        actaId,
+        item.id,
+        item.estado,
+        `Transferido: ${data.bodega_origen} → ${data.bodega_destino}`
+      ]);
+    }
+
+    // 6. 🆕 CREAR NOTIFICACIÓN PARA LA BODEGA DESTINO
+    const notificacionSql = `
+      INSERT INTO notificaciones 
+      (usuario_id, titulo, mensaje, tipo, leida, creado_en)
+      SELECT 
+        u.id,
+        'Nueva Transferencia Recibida',
+        ?,
+        'transferencia',
+        0,
+        NOW()
+      FROM usuarios u
+      WHERE u.bodega = ? AND u.activo = 1
+    `;
+    
+    await connection.query(notificacionSql, [
+      `Has recibido ${items.length} items de ${data.bodega_origen}. Motivo: ${data.motivo || 'Sin motivo especificado'}`,
+      data.bodega_destino
+    ]);
+
+    await connection.commit();
+
+    return {
+      success: true,
+      message: `Transferencia completada: ${items.length} items movidos a ${data.bodega_destino}`,
+      acta_id: actaId,
+      items_transferidos: items.length,
+      notificacion_enviada: true
+    };
+
+  } catch (error) {
+    await connection.rollback();
+    console.error("❌ ERROR en solicitarTransferencia:", error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+  // ✅ APROBAR/RECHAZAR TRANSFERENCIA
+  async function aprobarTransferencia(actaId, decision, usuarioAprobador) {
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+
+      // 1. Verificar que el usuario es administrador
+      if (usuarioAprobador.rol !== "administrador") {
+        throw new Error("Solo administradores pueden aprobar transferencias");
+      }
+
+      // 2. Obtener transferencias pendientes de esta acta
+      const transferenciasSql = `
+        SELECT * FROM ${TABLA_TRANSFERENCIAS} 
+        WHERE acta_id = ? AND estado = 'pendiente'
+      `;
+      const transferencias = await connection.query(transferenciasSql, [actaId]);
+
+      if (transferencias.length === 0) {
+        throw new Error("No hay transferencias pendientes para esta acta");
+      }
+
+      const nuevoEstado = decision === 'aprobar' ? 'aprobada' : 'rechazada';
+
+      // 3. Actualizar estado de transferencias
+      const updateTransferenciasSql = `
+        UPDATE ${TABLA_TRANSFERENCIAS} 
+        SET estado = ?, usuario_aprobador_id = ?, fecha_aprobacion = NOW() 
+        WHERE acta_id = ? AND estado = 'pendiente'
+      `;
+      await connection.query(updateTransferenciasSql, [
+        nuevoEstado,
+        usuarioAprobador.id,
+        actaId
+      ]);
+
+      // 4. Si fue aprobada, actualizar inventario
+      if (decision === 'aprobar') {
+        for (const transferencia of transferencias) {
+          const updateInventarioSql = `
+            UPDATE inventario 
+            SET bodega = ?, fecha_actualizacion = NOW() 
+            WHERE id = ?
+          `;
+          await connection.query(updateInventarioSql, [
+            transferencia.bodega_destino,
+            transferencia.inventario_id
+          ]);
+
+          // Actualizar transferencia a completada
+          const completarTransferenciaSql = `
+            UPDATE ${TABLA_TRANSFERENCIAS} 
+            SET estado = 'completada', fecha_completacion = NOW() 
+            WHERE id = ?
+          `;
+          await connection.query(completarTransferenciaSql, [transferencia.id]);
+        }
+      }
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: `Transferencia ${nuevoEstado}: ${transferencias.length} items`,
+        items_afectados: transferencias.length,
+        estado: nuevoEstado
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("❌ ERROR en aprobarTransferencia:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // 🔄 DEVOLUCIÓN CON VALIDACIÓN DE ESTADO
+  async function procesarDevolucion(data, usuario) {
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+
+      // 1. Validaciones
+      if (!data.asignacion_id || !data.estado_equipo) {
+        throw new Error("Datos incompletos para devolución");
+      }
+
+      // 2. Obtener información de la asignación
+      const asignacionSql = `
+        SELECT a.*, i.* 
+        FROM ${TABLA_ASIGNACIONES} a
+        INNER JOIN inventario i ON a.inventario_id = i.id
+        WHERE a.id = ?
+      `;
+      const asignaciones = await connection.query(asignacionSql, [data.asignacion_id]);
+
+      if (asignaciones.length === 0) {
+        throw new Error("Asignación no encontrada");
+      }
+
+      const asignacion = asignaciones[0];
+
+      // 3. Crear acta de devolución
+      const actaSql = `
+        INSERT INTO ${TABLA_ACTAS} 
+        (tipo, descripcion, fecha, usuario_creador_id, recibido_por_id)
+        VALUES ('DEVOLUCION', ?, NOW(), ?, ?)
+      `;
+      
+      const actaResult = await connection.query(actaSql, [
+        data.motivo_devolucion || `Devolución de equipo ${asignacion.inventario_id}`,
+        usuario.id,
+        usuario.id // recibido_por
+      ]);
+
+      const actaId = actaResult.insertId;
+
+      // 4. Crear detalle de acta
+      const detalleSql = `
+        INSERT INTO ${TABLA_ACTA_DETALLES} 
+        (acta_id, inventario_id, estado_en_acta, comentarios)
+        VALUES (?, ?, ?, ?)
+      `;
+      await connection.query(detalleSql, [
+        actaId,
+        asignacion.inventario_id,
+        data.estado_equipo, // Estado físico del equipo
+        data.motivo_devolucion || null
+      ]);
+
+      // 5. Registrar devolución
+      const devolucionSql = `
+        INSERT INTO ${TABLA_DEVOLUCIONES} 
+        (asignacion_id, tecnico_id, sitio_venta_id, fecha_devolucion, usuario_receptor_id, estado_equipo, motivo_devolucion)
+        VALUES (?, ?, ?, NOW(), ?, ?, ?)
+      `;
+      await connection.query(devolucionSql, [
+        data.asignacion_id,
+        asignacion.tecnico_id,
+        asignacion.sitio_venta_id,
+        usuario.id,
+        data.estado_equipo,
+        data.motivo_devolucion || null
+      ]);
+
+      // 6. Actualizar asignación e inventario
+      const updateAsignacionSql = `
+        UPDATE ${TABLA_ASIGNACIONES} 
+        SET estado = 'devuelto' 
+        WHERE id = ?
+      `;
+      await connection.query(updateAsignacionSql, [data.asignacion_id]);
+
+      const updateInventarioSql = `
+        UPDATE inventario 
+        SET estado_asignacion = 'disponible', fecha_actualizacion = NOW() 
+        WHERE id = ?
+      `;
+      await connection.query(updateInventarioSql, [asignacion.inventario_id]);
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: "Devolución procesada correctamente",
+        acta_id: actaId,
+        estado_equipo: data.estado_equipo
+      };
+
+    } catch (error) {
+      await connection.rollback();
+      console.error("❌ ERROR en procesarDevolucion:", error);
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // 📊 OBTENER STOCK AGREGADO
+  async function obtenerStockAgregado(usuario) {
+    try {
+      let sql = `
+        SELECT 
+          a.referencia,
+          a.descripcion,
+          a.tipo_articulo,
+          c.nombre as categoria_nombre,
+          m.nombre as marca_nombre,
+          i.bodega,
+          COUNT(i.id) as total_unidades,
+          SUM(i.cantidad) as stock_total
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        WHERE i.estado != 'Baja'
+      `;
+
+      const params = [];
+
+      // Filtro por bodega si no es admin
+      if (usuario.rol !== "administrador" && usuario.bodega) {
+        sql += ` AND i.bodega = ?`;
+        params.push(usuario.bodega);
+      }
+
+      sql += ` GROUP BY a.referencia, a.tipo_articulo, i.bodega 
+               ORDER BY c.nombre, a.referencia, i.bodega`;
+
+      const resultados = await db.consultaDirecta(sql, params);
+
+      // Procesar para agrupar por referencia
+      const stockAgrupado = {};
+      
+      resultados.forEach(row => {
+        const key = `${row.referencia}_${row.tipo_articulo}`;
+        
+        if (!stockAgrupado[key]) {
+          stockAgrupado[key] = {
+            referencia: row.referencia,
+            descripcion: row.descripcion,
+            tipo_articulo: row.tipo_articulo,
+            categoria_nombre: row.categoria_nombre,
+            marca_nombre: row.marca_nombre,
+            stock_por_bodega: {},
+            stock_total: 0,
+            unidades_totales: 0
+          };
+        }
+
+        stockAgrupado[key].stock_por_bodega[row.bodega] = {
+          stock: row.stock_total,
+          unidades: row.total_unidades
+        };
+
+        stockAgrupado[key].stock_total += row.stock_total;
+        stockAgrupado[key].unidades_totales += row.total_unidades;
+      });
+
+      return Object.values(stockAgrupado);
+
+    } catch (error) {
+      console.error("❌ ERROR en obtenerStockAgregado:", error);
+      throw error;
+    }
+  }
+  // 🔔 OBTENER NOTIFICACIONES DEL USUARIO
+async function obtenerNotificaciones(usuario) {
+  try {
+    const sql = `
+      SELECT 
+        id,
+        titulo,
+        mensaje,
+        tipo,
+        leida,
+        creado_en,
+        leido_en
+      FROM notificaciones 
+      WHERE usuario_id = ?
+      ORDER BY creado_en DESC
+      LIMIT 50
+    `;
+
+    const notificaciones = await db.consultaDirecta(sql, [usuario.id]);
+
+    return notificaciones;
+  } catch (error) {
+    console.error("❌ ERROR en obtenerNotificaciones:", error);
+    throw error;
+  }
+}
+
+// ✅ MARCAR NOTIFICACIÓN COMO LEÍDA
+async function marcarNotificacionLeida(notificacionId, usuario) {
+  try {
+    const sql = `
+      UPDATE notificaciones 
+      SET leida = 1, leido_en = NOW() 
+      WHERE id = ? AND usuario_id = ?
+    `;
+
+    const resultado = await db.consultaDirecta(sql, [notificacionId, usuario.id]);
+
+    return {
+      success: true,
+      message: "Notificación marcada como leída",
+      afectadas: resultado.affectedRows
+    };
+  } catch (error) {
+    console.error("❌ ERROR en marcarNotificacionLeida:", error);
+    throw error;
+  }
+}
+
+// 📊 OBTENER ESTADÍSTICAS DE NOTIFICACIONES
+async function obtenerEstadisticasNotificaciones(usuario) {
+  try {
+    const sql = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(leida = 0) as no_leidas,
+        tipo,
+        COUNT(*) as cantidad
+      FROM notificaciones 
+      WHERE usuario_id = ?
+      GROUP BY tipo
+    `;
+
+    const estadisticas = await db.consultaDirecta(sql, [usuario.id]);
+
+    return {
+      total: estadisticas.reduce((sum, item) => sum + item.total, 0),
+      no_leidas: estadisticas.reduce((sum, item) => sum + item.no_leidas, 0),
+      por_tipo: estadisticas
+    };
+  } catch (error) {
+    console.error("❌ ERROR en obtenerEstadisticasNotificaciones:", error);
+    throw error;
+  }
+}
+
+  return {
+    asignacionMasiva,
+    solicitarTransferencia,
+    aprobarTransferencia,
+    procesarDevolucion,
+    obtenerStockAgregado,
+    obtenerNotificaciones,
+    obtenerEstadisticasNotificaciones,
+    marcarNotificacionLeida
+  };
+};
+
+/srs/modulos/gestion/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// 🎯 ASIGNACIÓN MASIVA
+router.post(
+  "/asignaciones-masivas",
+  verificarToken,
+  permitirRoles("administrador", "bodega"),
+  asignacionMasiva
+);
+
+// 🔄 TRANSFERENCIAS
+router.post(
+  "/transferencias",
+  verificarToken,
+  permitirRoles("administrador", "bodega"),
+  solicitarTransferencia
+);
+
+// ✅ VERIFICAR RECEPCIÓN
+router.post(
+  "/transferencias/:actaId/verificar",
+  verificarToken,
+  permitirRoles("administrador", "bodega"),
+  verificarRecepcion
+);
+
+// 🔄 DEVOLUCIONES
+router.post(
+  "/devoluciones",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico"),
+  procesarDevolucion
+);
+
+// 📊 STOCK AGREGADO
+router.get(
+  "/stock-agregado",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "usuario"),
+  obtenerStockAgregado
+);
+
+// 🔔 NOTIFICACIONES
+router.get(
+  "/notificaciones",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  obtenerNotificaciones
+);
+
+router.patch(
+  "/notificaciones/:id/leer",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  marcarNotificacionLeida
+);
+
+router.get(
+  "/notificaciones/estadisticas",
+  verificarToken,
+  permitirRoles("administrador", "bodega", "tecnico", "usuario"),
+  obtenerEstadisticasNotificaciones
+);
+
+// ---------------------------
+// Controladores HTTP
+// ---------------------------
+
+async function asignacionMasiva(req, res, next) {
+  try {
+    const { tecnico_id, sitio_venta_id, inventario_ids, descripcion, observaciones } = req.body;
+    
+    if (!tecnico_id || !sitio_venta_id || !inventario_ids) {
+      return respuesta.error(req, res, "tecnico_id, sitio_venta_id e inventario_ids son requeridos", 400);
+    }
+
+    const resultado = await controlador.asignacionMasiva(req.body, req.user);
+    respuesta.success(req, res, resultado, 201);
+  } catch (error) {
+    console.error('❌ Error en asignación masiva:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function solicitarTransferencia(req, res, next) {
+  try {
+    const { inventario_ids, bodega_origen, bodega_destino, motivo } = req.body;
+    
+    if (!inventario_ids || !bodega_origen || !bodega_destino) {
+      return respuesta.error(req, res, "inventario_ids, bodega_origen y bodega_destino son requeridos", 400);
+    }
+
+    // Si no es admin, validar que bodega_origen coincide con su bodega
+    if (req.user.rol !== "administrador" && req.user.bodega !== bodega_origen) {
+      return respuesta.error(req, res, "No tienes permiso para transferir desde esta bodega", 403);
+    }
+
+    const resultado = await controlador.solicitarTransferencia(req.body, req.user);
+    respuesta.success(req, res, resultado, 201);
+  } catch (error) {
+    console.error('❌ Error en transferencia:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function verificarRecepcion(req, res, next) {
+  try {
+    const { actaId } = req.params;
+    const { items_verificados } = req.body; // Array de {inventario_id, verificado, motivo_rechazo}
+    
+    if (!items_verificados || !Array.isArray(items_verificados)) {
+      return respuesta.error(req, res, "items_verificados es requerido y debe ser un array", 400);
+    }
+
+    const resultado = await controlador.verificarRecepcion(parseInt(actaId), items_verificados, req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error en verificación de recepción:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function procesarDevolucion(req, res, next) {
+  try {
+    const { asignacion_id, estado_equipo, motivo_devolucion } = req.body;
+    
+    if (!asignacion_id || !estado_equipo) {
+      return respuesta.error(req, res, "asignacion_id y estado_equipo son requeridos", 400);
+    }
+
+    // Validar estado_equipo
+    const estadosValidos = ['bueno', 'danado', 'reparacion'];
+    if (!estadosValidos.includes(estado_equipo)) {
+      return respuesta.error(req, res, "estado_equipo debe ser: bueno, danado o reparacion", 400);
+    }
+
+    const resultado = await controlador.procesarDevolucion(req.body, req.user);
+    respuesta.success(req, res, resultado, 201);
+  } catch (error) {
+    console.error('❌ Error en devolución:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function obtenerStockAgregado(req, res, next) {
+  try {
+    const resultado = await controlador.obtenerStockAgregado(req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo stock agregado:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function obtenerNotificaciones(req, res, next) {
+  try {
+    const resultado = await controlador.obtenerNotificaciones(req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo notificaciones:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function marcarNotificacionLeida(req, res, next) {
+  try {
+    const { id } = req.params;
+    const resultado = await controlador.marcarNotificacionLeida(parseInt(id), req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error marcando notificación como leída:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function obtenerEstadisticasNotificaciones(req, res, next) {
+  try {
+    const resultado = await controlador.obtenerEstadisticasNotificaciones(req.user);
+    respuesta.success(req, res, resultado, 200);
+  } catch (error) {
+    console.error('❌ Error obteniendo estadísticas de notificaciones:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+/srs/modulos/inventario/controlador.js
+
+const TABLA_INVENTARIO = "inventario";
+
+
+// 🎯 CACHE EN MEMORIA - Optimización FASE 1
+const filtrosCache = new Map();
+
+// 🔧 Configuración de cache (5 minutos = 300,000 ms)
+const CACHE_DURACION = 5 * 60 * 1000; 
+
+// 🧹 Limpieza automática de cache expirado cada 10 minutos
+setInterval(() => {
+  const ahora = Date.now();
+  for (let [key, valor] of filtrosCache.entries()) {
+    if (ahora - valor.timestamp > CACHE_DURACION) {
+      filtrosCache.delete(key);
+      console.log('🧹 Cache limpiado:', key);
+    }
+  }
+}, 10 * 60 * 1000);
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+  // 🔍 Determina si el usuario puede modificar o crear registros
+  function puedeModificar(usuario, bodegaRegistro) {
+    const esAdmin = usuario.rol === "administrador";
+    const tieneBodega = usuario.bodega !== null;
+
+    // ✅ Administrador: acceso total
+    if (esAdmin) return true;
+
+    // 🚫 Usuario sin bodega: solo lectura
+    if (!tieneBodega) return false;
+
+    // ✅ Bodega asignada: solo su propia bodega
+    return usuario.bodega === bodegaRegistro;
+  }
+
+async function todos(usuario, queryParams = {}) {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      estado = '',
+      bodega = '',
+      tipo_bodega = '',
+      marca = '',
+      tipo_articulo = ''
+    } = queryParams;
+
+    const offset = (page - 1) * limit;
+
+    // 📊 CONSULTA PRINCIPAL OPTIMIZADA
+    let sql = `
+      SELECT SQL_CALC_FOUND_ROWS
+        i.id,
+        i.articulo_id,
+        i.placa,
+        i.serial,
+        i.estado,
+        i.cantidad,
+        i.bodega,
+        i.ubicacion_detallada,
+        i.fecha_creacion,
+        i.fecha_actualizacion,
+        a.referencia AS articulo_referencia,
+        a.descripcion AS articulo_descripcion,
+        a.tipo_articulo,
+        a.tipo_bodega,
+        c.nombre AS categoria_nombre,
+        m.nombre AS marca_nombre,
+        -- 🆕 Campo para asignaciones futuras
+        i.estado_asignacion
+      FROM inventario i
+      INNER JOIN articulos a ON i.articulo_id = a.id
+      LEFT JOIN categorias c ON a.categoria_id = c.id
+      LEFT JOIN marcas m ON a.marca_id = m.id
+      WHERE i.estado != 'Baja'
+    `;
+
+    const params = [];
+
+    // 🔒 Filtro de seguridad por bodega
+    if (usuario.rol !== "administrador" && usuario.bodega) {
+      sql += ` AND i.bodega = ?`;
+      params.push(usuario.bodega);
+    }
+
+    // 🔍 Búsqueda optimizada con FULLTEXT (si configuras el índice)
+    if (search) {
+      sql += ` AND (
+        a.referencia LIKE ? OR 
+        i.placa LIKE ? OR 
+        i.serial LIKE ?
+      )`;
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // 🏢 Filtros por atributo (con índices)
+    if (estado) {
+      sql += ` AND i.estado = ?`;
+      params.push(estado);
+    }
+    if (bodega) {
+      sql += ` AND i.bodega = ?`;
+      params.push(bodega);
+    }
+    if (tipo_bodega) {
+      sql += ` AND a.tipo_bodega = ?`;
+      params.push(tipo_bodega);
+    }
+    if (marca) {
+      sql += ` AND m.nombre = ?`;
+      params.push(marca);
+    }
+    if (tipo_articulo) {
+      sql += ` AND a.tipo_articulo = ?`;
+      params.push(tipo_articulo);
+    }
+
+    // 📄 Paginación
+    sql += ` ORDER BY i.fecha_actualizacion DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), offset);
+
+    // 🚀 Ejecutar consulta principal
+    const items = await db.consultaDirecta(sql, params);
+    
+    // 🎯 Obtener total con FOUND_ROWS() (MUCHO más rápido)
+    const countResult = await db.consultaDirecta('SELECT FOUND_ROWS() as total');
+    const total = countResult[0].total;
+
+    return {
+      items,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  } catch (error) {
+    console.error("❌ ERROR AL CONSULTAR INVENTARIO:", error);
+    throw error;
+  }
+}
+
+  // 🔍 Consultar un registro específico
+  async function uno(id, usuario) {
+    try {
+      const sql = `
+        SELECT 
+          i.id,
+          i.articulo_id,
+          i.placa,
+          i.serial,
+          i.estado,
+          i.cantidad,
+          i.bodega,
+          i.ubicacion_detallada,
+          i.fecha_creacion,
+          i.fecha_actualizacion,
+
+          a.referencia AS articulo_referencia,
+          a.descripcion AS articulo_descripcion,
+          a.tipo_articulo,
+          a.tipo_bodega,
+
+          m.id AS marca_id,
+          m.nombre AS marca_nombre,
+
+          c.id AS categoria_id,
+          c.nombre AS categoria_nombre,
+
+          u.id AS usuario_id,
+          u.username AS usuario_creador,
+          u.nombre_completo AS usuario_nombre
+
+        FROM inventario i
+        INNER JOIN articulos a ON i.articulo_id = a.id
+        LEFT JOIN marcas m ON a.marca_id = m.id
+        LEFT JOIN categorias c ON a.categoria_id = c.id
+        INNER JOIN usuarios u ON i.usuario_id = u.id
+        WHERE i.id = ?
+      `;
+
+      const resultado = await db.consultaDirecta(sql, [id]);
+      if (!resultado.length) throw new Error("Registro no encontrado");
+
+      const registro = resultado[0];
+
+      // ✅ Permisos: admin ve todo, usuario sin bodega ve todo
+      if (
+        usuario.rol === "administrador" ||
+        usuario.bodega === null ||
+        usuario.bodega === registro.bodega
+      ) {
+        return registro;
+      }
+
+      throw new Error("No tienes permiso para ver este registro");
+    } catch (error) {
+      console.error("❌ ERROR AL CONSULTAR INVENTARIO POR ID:", error);
+      throw error;
+    }
+  }
+
+  // ➕ Crear nuevo registro - ACTUALIZADO
+async function agregar(data, usuario) {
+  try {
+    if (!puedeModificar(usuario, data.bodega)) {
+      throw new Error("No tienes permiso para crear en esta bodega");
+    }
+
+    const sql = `
+      INSERT INTO ${TABLA_INVENTARIO}
+      (articulo_id, placa, serial, estado, estado_asignacion, cantidad, bodega, ubicacion_detallada, usuario_id, fecha_creacion, fecha_actualizacion)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+    const resultado = await db.consultaDirecta(sql, [
+      data.articulo_id,
+      data.placa || null,
+      data.serial || null,
+      data.estado,
+      data.estado_asignacion || 'disponible', // 🆕 Valor por defecto
+      data.cantidad || 1,
+      data.bodega,
+      data.ubicacion_detallada || null,
+      usuario.id,
+    ]);
+     invalidarCacheFiltros();
+    console.log('🧹 Cache invalidado por nuevo registro');
+    return {
+      message: "Inventario agregado correctamente",
+      id: resultado.insertId,
+      
+    };
+
+  } catch (error) {
+    console.error("❌ ERROR AL AGREGAR INVENTARIO:", error);
+    throw error;
+  }
+  
+}
+
+// 🔄 Actualizar un registro - ACTUALIZADO
+async function actualizar(id, data, usuario) {
+  try {
+    const registro = await db.consultaDirecta(
+      `SELECT bodega FROM ${TABLA_INVENTARIO} WHERE id = ?`,
+      [id]
+    );
+
+    if (!registro.length) throw new Error("Registro no encontrado");
+    const bodegaRegistro = registro[0].bodega;
+
+    if (!puedeModificar(usuario, bodegaRegistro)) {
+      throw new Error("No tienes permiso para modificar este registro");
+    }
+
+    const sql = `
+      UPDATE ${TABLA_INVENTARIO}
+      SET 
+        articulo_id=?, 
+        placa=?, 
+        serial=?, 
+        estado=?, 
+        estado_asignacion=?,  -- 🆕 Nuevo campo
+        cantidad=?, 
+        bodega=?, 
+        ubicacion_detallada=?, 
+        usuario_id=?, 
+        fecha_actualizacion=NOW()
+      WHERE id=?
+    `;
+    await db.consultaDirecta(sql, [
+      data.articulo_id,
+      data.placa || null,
+      data.serial || null,
+      data.estado,
+      data.estado_asignacion || 'disponible', // 🆕 Valor por defecto
+      data.cantidad || 1,
+      data.bodega,
+      data.ubicacion_detallada || null,
+      usuario.id,
+      id,
+    ]);
+     invalidarCacheFiltros();
+    console.log('🧹 Cache invalidado por nuevo registro');
+    return {
+      message: "Inventario actualizado correctamente",
+      id: parseInt(id),
+    };
+  } catch (error) {
+    console.error("❌ ERROR AL ACTUALIZAR INVENTARIO:", error);
+    throw error;
+  }
+}
+
+  // 🔄 Actualizar un registro
+  async function actualizar(id, data, usuario) {
+    try {
+      const registro = await db.consultaDirecta(
+        `SELECT bodega FROM ${TABLA_INVENTARIO} WHERE id = ?`,
+        [id]
+      );
+
+      if (!registro.length) throw new Error("Registro no encontrado");
+      const bodegaRegistro = registro[0].bodega;
+
+      if (!puedeModificar(usuario, bodegaRegistro)) {
+        throw new Error("No tienes permiso para modificar este registro");
+      }
+
+      const sql = `
+        UPDATE ${TABLA_INVENTARIO}
+        SET articulo_id=?, placa=?, serial=?, estado=?, cantidad=?, bodega=?, ubicacion_detallada=?, usuario_id=?, fecha_actualizacion=NOW()
+        WHERE id=?
+      `;
+      await db.consultaDirecta(sql, [
+        data.articulo_id,
+        data.placa || null,
+        data.serial || null,
+        data.estado,
+        data.cantidad || 1,
+        data.bodega,
+        data.ubicacion_detallada || null,
+        usuario.id,
+        id,
+      ]);
+       invalidarCacheFiltros();
+    console.log('🧹 Cache invalidado por nuevo registro');
+      return {
+        message: "Inventario actualizado correctamente",
+        id: parseInt(id),
+      };
+    } catch (error) {
+      console.error("❌ ERROR AL ACTUALIZAR INVENTARIO:", error);
+      throw error;
+    }
+  }
+
+  // 🗑️ Eliminar registro
+  async function eliminar(id, usuario) {
+    try {
+      const registro = await db.consultaDirecta(
+        `SELECT bodega FROM ${TABLA_INVENTARIO} WHERE id = ?`,
+        [id]
+      );
+
+      if (!registro.length) throw new Error("Registro no encontrado");
+      const bodegaRegistro = registro[0].bodega;
+
+      if (!puedeModificar(usuario, bodegaRegistro)) {
+        throw new Error("No tienes permiso para eliminar este registro");
+      }
+
+      await db.consultaDirecta(`DELETE FROM ${TABLA_INVENTARIO} WHERE id = ?`, [id]);
+       invalidarCacheFiltros();
+    console.log('🧹 Cache invalidado por nuevo registro');
+      return {
+        message: "Inventario eliminado correctamente",
+        id: parseInt(id),
+      };
+    } catch (error) {
+      console.error("❌ ERROR AL ELIMINAR INVENTARIO:", error);
+      throw error;
+    }
+  }
+
+// 📊 Obtener opciones de filtros disponibles - OPTIMIZADA CON CACHE
+async function filtrosDisponibles(usuario) {
+  try {
+    // 🎯 Clave única para cache por usuario+bodega
+    const cacheKey = `filtros_${usuario.id}_${usuario.bodega || 'all'}`;
+    
+    // ✅ Verificar cache
+    const cached = filtrosCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < CACHE_DURACION)) {
+      console.log('🎯 Retornando filtros desde cache:', cacheKey);
+      return cached.data;
+    }
+
+    console.log('🔄 Ejecutando consulta de filtros para:', usuario.id);
+    
+    const params = usuario.rol !== "administrador" && usuario.bodega !== null ? [usuario.bodega] : [];
+
+    // 🚀 CONSULTA ÚNICA OPTIMIZADA - En lugar de 6 consultas separadas
+    const sql = `
+      -- Estados del inventario
+      SELECT 'estados' as tipo, estado as valor
+      FROM inventario 
+      WHERE estado != 'Baja'
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- Bodegas
+      SELECT 'bodegas' as tipo, bodega as valor
+      FROM inventario 
+      WHERE estado != 'Baja'
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- Tipos de bodega
+      SELECT 'tipos_bodega' as tipo, a.tipo_bodega as valor
+      FROM inventario i
+      INNER JOIN articulos a ON i.articulo_id = a.id
+      WHERE i.estado != 'Baja'
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND i.bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- Tipos de artículo
+      SELECT 'tipos_articulo' as tipo, a.tipo_articulo as valor
+      FROM inventario i
+      INNER JOIN articulos a ON i.articulo_id = a.id
+      WHERE i.estado != 'Baja'
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND i.bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- Marcas
+      SELECT 'marcas' as tipo, m.nombre as valor
+      FROM inventario i
+      INNER JOIN articulos a ON i.articulo_id = a.id
+      LEFT JOIN marcas m ON a.marca_id = m.id
+      WHERE i.estado != 'Baja' AND m.nombre IS NOT NULL
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND i.bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- Categorías
+      SELECT 'categorias' as tipo, c.nombre as valor
+      FROM inventario i
+      INNER JOIN articulos a ON i.articulo_id = a.id
+      LEFT JOIN categorias c ON a.categoria_id = c.id
+      WHERE i.estado != 'Baja' AND c.nombre IS NOT NULL
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND i.bodega = ?' : ''}
+      
+      UNION ALL
+      
+      -- 🆕 Estados de asignación
+      SELECT 'estados_asignacion' as tipo, estado_asignacion as valor
+      FROM inventario 
+      WHERE estado != 'Baja'
+      ${usuario.rol !== "administrador" && usuario.bodega !== null ? 'AND bodega = ?' : ''}
+    `;
+
+    // 📊 Ejecutar consulta única
+    const resultados = await db.consultaDirecta(sql, [...params, ...params, ...params, ...params, ...params, ...params, ...params]);
+    
+    // 🎯 Procesar resultados
+    const resultadoFinal = {
+      estados: [],
+      bodegas: [],
+      tipos_bodega: [],
+      tipos_articulo: [],
+      marcas: [],
+      categorias: [],
+      estados_asignacion: []  // 🆕 Nuevo filtro
+    };
+
+    // 📋 Organizar resultados por tipo
+    resultados.forEach(row => {
+      if (row.valor) { // Filtrar valores nulos
+        switch(row.tipo) {
+          case 'estados':
+            resultadoFinal.estados.push(row.valor);
+            break;
+          case 'bodegas':
+            resultadoFinal.bodegas.push(row.valor);
+            break;
+          case 'tipos_bodega':
+            resultadoFinal.tipos_bodega.push(row.valor);
+            break;
+          case 'tipos_articulo':
+            resultadoFinal.tipos_articulo.push(row.valor);
+            break;
+          case 'marcas':
+            resultadoFinal.marcas.push(row.valor);
+            break;
+          case 'categorias':
+            resultadoFinal.categorias.push(row.valor);
+            break;
+          case 'estados_asignacion':
+            resultadoFinal.estados_asignacion.push(row.valor);
+            break;
+        }
+      }
+    });
+
+    // 🧹 Eliminar duplicados y ordenar
+    Object.keys(resultadoFinal).forEach(key => {
+      resultadoFinal[key] = [...new Set(resultadoFinal[key])].sort();
+    });
+
+    console.log('✅ Filtros procesados. Total resultados:', resultados.length);
+
+    // 💾 Guardar en cache
+    filtrosCache.set(cacheKey, {
+      data: resultadoFinal,
+      timestamp: Date.now()
+    });
+
+    return resultadoFinal;
+    
+  } catch (error) {
+    console.error("❌ ERROR AL OBTENER FILTROS:", error);
+    
+    // 🆘 Valores por defecto en caso de error
+    return {
+      estados: ['Nuevo', 'Bueno', 'Reparacion'],
+      bodegas: usuario.bodega ? [usuario.bodega] : ['Bodega Principal', 'Bodega Garzon', 'Bodega Pitalito'],
+      tipos_bodega: ['BMD', 'Sistemas'],
+      tipos_articulo: ['Activo Fijo', 'Activo de Control', 'Consumible'],
+      marcas: [],
+      categorias: [],
+      estados_asignacion: ['disponible', 'asignado', 'instalado', 'en_mantenimiento']
+    };
+  }
+}
+
+// 🗑️ Función para invalidar cache (llamar cuando se agregue/actualice/elimine inventario)
+function invalidarCacheFiltros() {
+  const tamañoAntes = filtrosCache.size;
+  filtrosCache.clear();
+  console.log(`🧹 Cache invalidado. Elementos eliminados: ${tamañoAntes}`);
+  
+}
+
+  return { todos, uno, agregar, actualizar, eliminar, filtrosDisponibles };
+};
+
+/srs/modulos/inventario/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// 🧩 Listar inventario
+router.get(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "usuario", "bodeguero"),
+  todos
+);
+
+// 🧩 Obtener un registro
+router.get(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "usuario", "bodeguero"),
+  uno
+);
+
+// 🧩 Crear nuevo registro
+router.post(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  agregar
+);
+
+// 🧩 Actualizar registro
+router.put(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  actualizar
+);
+
+// 🧩 Eliminar registro
+router.delete(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  eliminar
+);
+
+// 🧩 Obtener filtros disponibles
+router.get(
+  "/filtros/disponibles",
+  verificarToken,
+  permitirRoles("administrador", "usuario", "bodeguero", "tecnico"),
+  filtrosDisponibles
+);
+
+// ---------------------------
+// Controladores HTTP
+// ---------------------------
+
+// 🧩 Listar inventario - CORREGIDO
+async function todos(req, res, next) {
+  try {
+    console.log('📥 Query params recibidos en ruta:', req.query); // DEBUG
+    const items = await controlador.todos(req.user, req.query); // ← Pasar query params
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    console.error('❌ Error en ruta /inventario:', error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const item = await controlador.uno(req.params.id, req.user);
+    respuesta.success(req, res, item, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 403);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    const item = await controlador.agregar(req.body, req.user);
+    respuesta.success(req, res, item, 201);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 403);
+  }
+}
+
+async function actualizar(req, res, next) {
+  try {
+    const item = await controlador.actualizar(req.params.id, req.body, req.user);
+    respuesta.success(req, res, item, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 403);
+  }
+}
+
+async function eliminar(req, res, next) {
+  try {
+    const item = await controlador.eliminar(req.params.id, req.user);
+    respuesta.success(req, res, item, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 403);
+  }
+}
+
+async function filtrosDisponibles(req, res, next) {
+  try {
+    const filtros = await controlador.filtrosDisponibles(req.user);
+    respuesta.success(req, res, filtros, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/maps/controlador.js
+
+const mysql = require("../../DB/mysql");
+
+class MapsController {
+  
+  // 🗺️ OBTENER TODOS LOS SITIOS DE VENTA (CON Y SIN COORDENADAS)
+  async getSitiosVenta(req, res) {
+    try {
+      const sql = `
+        SELECT 
+          id,
+          codigo_sv,
+          sitio_venta,
+          direccion,
+          ciudad,
+          barrio,
+          latitud,
+          longitud,
+          tipo_sv,
+          estado_sv,
+          tecnologias_sv,
+          geocoding_completo,
+          precision_geocoding,
+          ultima_actualizacion,
+          -- Campos para Mapbox
+          CASE 
+            WHEN tipo_sv = 'PUNTO FIJO' THEN 'office'
+            WHEN tipo_sv = 'TIENDA A TIENDA' THEN 'shop'
+            ELSE 'warehouse'
+          END as mapbox_icon,
+          CASE 
+            WHEN estado_sv = 'Activo' THEN 'green'
+            WHEN estado_sv = 'Mantenimiento' THEN 'orange'
+            ELSE 'red'
+          END as mapbox_color,
+          -- Indicador si tiene coordenadas
+          CASE 
+            WHEN latitud IS NOT NULL AND longitud IS NOT NULL THEN 1
+            ELSE 0
+          END as tiene_coordenadas
+        FROM sitios_venta 
+        WHERE estado_sv != 'Inactivo'
+        ORDER BY ciudad, sitio_venta
+      `;
+
+      const sitios = await mysql.consultaDirecta(sql);
+      
+      res.json({
+        success: true,
+        data: sitios,
+        total: sitios.length,
+        con_coordenadas: sitios.filter(s => s.tiene_coordenadas).length,
+        sin_coordenadas: sitios.filter(s => !s.tiene_coordenadas).length
+      });
+
+    } catch (error) {
+      console.error('❌ Error en getSitiosVenta:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error al cargar sitios de venta'
+      });
+    }
+  }
+
+  // 📍 OBTENER SITIOS CON COORDENADAS PARA EL MAPA
+  async getSitiosConCoordenadas(req, res) {
+    try {
+      const sql = `
+        SELECT 
+          id,
+          codigo_sv,
+          sitio_venta,
+          direccion,
+          ciudad,
+          barrio,
+          latitud,
+          longitud,
+          tipo_sv,
+          estado_sv,
+          tecnologias_sv,
+          CASE 
+            WHEN tipo_sv = 'PUNTO FIJO' THEN 'office'
+            WHEN tipo_sv = 'TIENDA A TIENDA' THEN 'shop'
+            ELSE 'warehouse'
+          END as mapbox_icon,
+          CASE 
+            WHEN estado_sv = 'Activo' THEN 'green'
+            WHEN estado_sv = 'Mantenimiento' THEN 'orange'
+            ELSE 'red'
+          END as mapbox_color
+        FROM sitios_venta 
+        WHERE latitud IS NOT NULL 
+          AND longitud IS NOT NULL 
+          AND estado_sv != 'Inactivo'
+        ORDER BY ciudad, sitio_venta
+      `;
+
+      const sitios = await mysql.consultaDirecta(sql);
+      
+      res.json({
+        success: true,
+        data: sitios,
+        total: sitios.length
+      });
+
+    } catch (error) {
+      console.error('❌ Error en getSitiosConCoordenadas:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error al cargar sitios con coordenadas'
+      });
+    }
+  }
+
+  // 📱 ACTUALIZAR UBICACIÓN DESDE APP MÓVIL (TÉCNICOS)
+  async actualizarUbicacionSitio(req, res) {
+    try {
+      const { id } = req.params;
+      const { latitud, longitud, precision = 'exacta' } = req.body;
+
+      // Validar datos requeridos
+      if (!latitud || !longitud) {
+        return res.status(400).json({
+          success: false,
+          error: 'Latitud y longitud son requeridos'
+        });
+      }
+
+      // Validar rangos de coordenadas
+      if (latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
+        return res.status(400).json({
+          success: false,
+          error: 'Coordenadas fuera de rango válido'
+        });
+      }
+
+      // Verificar que el sitio existe
+      const sitioExistente = await mysql.uno('sitios_venta', id);
+      
+      if (!sitioExistente) {
+        return res.status(404).json({
+          success: false,
+          error: 'Sitio de venta no encontrado'
+        });
+      }
+
+      // Preparar datos para actualización
+      const datosActualizacion = {
+        latitud: parseFloat(latitud).toFixed(8),
+        longitud: parseFloat(longitud).toFixed(8),
+        geocoding_completo: 1,
+        precision_geocoding: precision,
+        sincronizado_movil: 1,
+        ultima_actualizacion: new Date()
+      };
+
+      // Actualizar en base de datos
+      await mysql.agregar('sitios_venta', { id: parseInt(id), ...datosActualizacion });
+
+      // Opcional: Guardar en cache de geocoding
+      await this.guardarEnGeocodingCache(sitioExistente, latitud, longitud, precision);
+
+      res.json({
+        success: true,
+        message: 'Ubicación actualizada exitosamente',
+        data: {
+          id: parseInt(id),
+          sitio_venta: sitioExistente.sitio_venta,
+          latitud: datosActualizacion.latitud,
+          longitud: datosActualizacion.longitud,
+          precision: precision,
+          actualizado_en: datosActualizacion.ultima_actualizacion
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error en actualizarUbicacionSitio:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error al actualizar ubicación'
+      });
+    }
+  }
+
+  // 💾 GUARDAR EN CACHE DE GEOCODING (OPCIONAL)
+  async guardarEnGeocodingCache(sitio, latitud, longitud, precision) {
+    try {
+      const direccionCompleta = `${sitio.direccion || ''}, ${sitio.barrio || ''}, ${sitio.ciudad}`.trim();
+      
+      // Crear hash único de la dirección
+      const crypto = require('crypto');
+      const direccionHash = crypto.createHash('sha256').update(direccionCompleta).digest('hex');
+
+      const cacheData = {
+        direccion_hash: direccionHash,
+        direccion_completa: direccionCompleta,
+        latitud: latitud,
+        longitud: longitud,
+        precision_obtenida: precision,
+        respuesta_json: JSON.stringify({
+          source: 'mobile_gps',
+          timestamp: new Date(),
+          sitio_id: sitio.id
+        })
+      };
+
+      await mysql.agregar('geocoding_cache', cacheData);
+
+    } catch (error) {
+      console.error('⚠️ Error guardando en cache de geocoding:', error);
+      // No falla la operación principal si el cache falla
+    }
+  }
+
+  // 📊 OBTENER ESTADÍSTICAS DE SITIOS
+  async getEstadisticasSitios(req, res) {
+    try {
+      const sql = `
+        SELECT 
+          COUNT(*) as total_sitios,
+          SUM(CASE WHEN latitud IS NOT NULL AND longitud IS NOT NULL THEN 1 ELSE 0 END) as con_coordenadas,
+          SUM(CASE WHEN latitud IS NULL OR longitud IS NULL THEN 1 ELSE 0 END) as sin_coordenadas,
+          COUNT(DISTINCT ciudad) as total_ciudades,
+          estado_sv,
+          tipo_sv
+        FROM sitios_venta 
+        WHERE estado_sv != 'Inactivo'
+        GROUP BY estado_sv, tipo_sv
+      `;
+
+      const estadisticas = await mysql.consultaDirecta(sql);
+      
+      res.json({
+        success: true,
+        data: estadisticas
+      });
+
+    } catch (error) {
+      console.error('❌ Error en getEstadisticasSitios:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error al cargar estadísticas'
+      });
+    }
+  }
+
+  // 🔍 BUSCAR SITIOS POR CIUDAD O NOMBRE
+  async buscarSitios(req, res) {
+    try {
+      const { ciudad, nombre, con_coordenadas } = req.query;
+      
+      let sql = `
+        SELECT 
+          id,
+          codigo_sv,
+          sitio_venta,
+          direccion,
+          ciudad,
+          barrio,
+          latitud,
+          longitud,
+          tipo_sv,
+          estado_sv
+        FROM sitios_venta 
+        WHERE estado_sv != 'Inactivo'
+      `;
+
+      const params = [];
+
+      if (ciudad) {
+        sql += ` AND ciudad LIKE ?`;
+        params.push(`%${ciudad}%`);
+      }
+
+      if (nombre) {
+        sql += ` AND (sitio_venta LIKE ? OR codigo_sv LIKE ?)`;
+        params.push(`%${nombre}%`, `%${nombre}%`);
+      }
+
+      if (con_coordenadas === 'true') {
+        sql += ` AND latitud IS NOT NULL AND longitud IS NOT NULL`;
+      }
+
+      sql += ` ORDER BY ciudad, sitio_venta`;
+
+      const sitios = await mysql.consultaDirecta(sql, params);
+      
+      res.json({
+        success: true,
+        data: sitios,
+        total: sitios.length
+      });
+
+    } catch (error) {
+      console.error('❌ Error en buscarSitios:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error al buscar sitios'
+      });
+    }
+  }
+}
+
+module.exports = new MapsController();
+
+
+/srs/modulos/maps/rutas.js
+
+const express = require('express');
+const router = express.Router();
+const mapsController = require('../maps/controlador');
+
+// 🗺️ RUTAS PARA MAPAS Y SITIOS DE VENTA
+
+// Obtener todos los sitios de venta (con y sin coordenadas)
+router.get('/sitios-venta', mapsController.getSitiosVenta);
+
+// Obtener solo sitios con coordenadas para el mapa
+router.get('/sitios-con-coordenadas', mapsController.getSitiosConCoordenadas);
+
+// Obtener estadísticas de sitios
+router.get('/estadisticas', mapsController.getEstadisticasSitios);
+
+// Buscar sitios por ciudad o nombre
+router.get('/buscar', mapsController.buscarSitios);
+
+// Actualizar ubicación de un sitio desde app móvil
+router.put('/sitios-venta/:id/ubicacion', mapsController.actualizarUbicacionSitio);
+
+module.exports = router;
+
+/srs/modulos/marcas/controlador.js
+
+const TABLA_MARCAS = "marcas";
+
+// 📋 Obtener todas las marcas
+async function todos() {
+  try {
+    console.log("📋 SOLICITANDO TODAS LAS MARCAS");
+    
+    const sql = `SELECT * FROM ${TABLA_MARCAS} ORDER BY nombre`;
+    console.log("🔍 SQL:", sql);
+    
+    const db = require("../../DB/mysql");
+    const resultado = await db.consultaDirecta(sql);
+    
+    console.log(`✅ SE OBTUVIERON ${resultado.length} MARCAS`);
+    return resultado;
+  } catch (error) {
+    console.error("❌ ERROR EN CONTROLADOR MARCAS - TODOS:", error);
+    throw error;
+  }
+}
+
+// 🔍 Obtener una marca por ID
+async function uno(id) {
+  try {
+    const sql = `SELECT * FROM ${TABLA_MARCAS} WHERE id = ?`;
+    const db = require("../../DB/mysql");
+    const resultado = await db.consultaDirecta(sql, [id]);
+    return resultado.length > 0 ? resultado[0] : null;
+  } catch (error) {
+    console.error("❌ ERROR EN CONTROLADOR MARCAS - UNO:", error);
+    throw error;
+  }
+}
+
+// ➕ Crear nueva marca
+async function agregar(data) {
+  try {
+    console.log("📥 CREANDO NUEVA MARCA:", data);
+    
+    const sql = `INSERT INTO ${TABLA_MARCAS} (nombre) VALUES (?)`;
+    const db = require("../../DB/mysql");
+    const resultado = await db.consultaDirecta(sql, [data.nombre]);
+    
+    console.log("✅ MARCA CREADA CON ID:", resultado.insertId);
+    return {
+      message: "Marca creada correctamente",
+      id: resultado.insertId
+    };
+  } catch (error) {
+    console.error("❌ ERROR EN CONTROLADOR MARCAS - AGREGAR:", error);
+    throw error;
+  }
+}
+
+
+module.exports = {
+  todos,
+  uno,
+  agregar
+};
+
+
+
+/srs/modulos/marcas/rutas.js
+
+
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const controlador = require("./controlador");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// 🧩 Listar todas las marcas
+router.get("/", verificarToken, todos);
+
+// 🧩 Obtener una marca
+router.get("/:id", verificarToken, uno);
+
+// 🧩 Crear nueva marca
+router.post("/", verificarToken, permitirRoles("administrador", "bodeguero"), agregar);
+
+// ---------------------------
+// Controladores HTTP
+// ---------------------------
+
+async function todos(req, res, next) {
+  try {
+    console.log("📥 SOLICITUD GET /api/marcas recibida");
+    const items = await controlador.todos();
+    console.log("✅ Enviando respuesta con", items.length, "marcas");
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    console.error("❌ ERROR EN RUTA MARCAS - TODOS:", error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const item = await controlador.uno(req.params.id);
+    if (!item) {
+      return respuesta.error(req, res, "Marca no encontrada", 404);
+    }
+    respuesta.success(req, res, item, 200);
+  } catch (error) {
+    console.error("❌ ERROR EN RUTA MARCAS - UNO:", error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    const item = await controlador.agregar(req.body);
+    respuesta.success(req, res, item, 201);
+  } catch (error) {
+    console.error("❌ ERROR EN RUTA MARCAS - AGREGAR:", error);
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/personal/controlador.js
+
+const TABLA_PERSONAL = "personal";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) db = require("../../DB/mysql");
+
+  // 📋 Listar todo el personal
+  async function todos() {
+    try {
+      console.log("📋 SOLICITANDO TODO EL PERSONAL");
+      const sql = `SELECT id, nombre, identificacion, cargo FROM ${TABLA_PERSONAL} ORDER BY nombre`;
+      const resultado = await db.consultaDirecta(sql);
+      console.log(`✅ SE OBTUVIERON ${resultado.length} REGISTROS`);
+      return resultado;
+    } catch (error) {
+      console.error("❌ ERROR EN TODOS PERSONAL:", error);
+      throw error;
+    }
+  }
+
+  // 🔍 Obtener un registro por ID
+  async function uno(id) {
+    try {
+      console.log("🔍 SOLICITANDO PERSONAL ID:", id);
+      const sql = `SELECT id, nombre, identificacion, cargo FROM ${TABLA_PERSONAL} WHERE id = ?`;
+      const resultado = await db.consultaDirecta(sql, [id]);
+      return resultado.length > 0 ? resultado[0] : null;
+    } catch (error) {
+      console.error("❌ ERROR EN UNO PERSONAL:", error);
+      throw error;
+    }
+  }
+
+// ➕ Agregar nuevo registro - ACTUALIZADO
+async function agregar(data) {
+  try {
+    console.log("📥 AGREGANDO NUEVO PERSONAL:", data.nombre);
+
+    // Evitar duplicados por identificación
+    const existe = await db.consultaDirecta(
+      `SELECT id FROM ${TABLA_PERSONAL} WHERE identificacion = ?`,
+      [data.identificacion]
+    );
+
+    if (existe.length > 0) {
+      throw new Error("Ya existe un registro con esta identificación");
+    }
+
+    const sql = `
+      INSERT INTO ${TABLA_PERSONAL} 
+      (nombre, identificacion, cargo, tipo, activo, email, telefono) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    const resultado = await db.consultaDirecta(sql, [
+      data.nombre,
+      data.identificacion,
+      data.cargo || '',
+      data.tipo || 'usuario',
+      data.activo !== undefined ? data.activo : 1,
+      data.email || null,
+      data.telefono || null,
+    ]);
+
+    console.log("✅ PERSONAL AGREGADO - ID:", resultado.insertId);
+    return {
+      message: "Personal agregado correctamente",
+      id: resultado.insertId,
+      ...data
+    };
+  } catch (error) {
+    console.error("❌ ERROR EN AGREGAR PERSONAL:", error);
+    throw error;
+  }
+}
+
+ // 🔄 Actualizar registro existente - ACTUALIZADO
+async function actualizar(id, data) {
+  try {
+    console.log("🔄 ACTUALIZANDO PERSONAL ID:", id);
+
+    // Verificar si la identificación ya está usada por otro
+    const existe = await db.consultaDirecta(
+      `SELECT id FROM ${TABLA_PERSONAL} WHERE identificacion = ? AND id != ?`,
+      [data.identificacion, id]
+    );
+
+    if (existe.length > 0) {
+      throw new Error("Otra persona ya tiene esta identificación");
+    }
+
+    const sql = `
+      UPDATE ${TABLA_PERSONAL} 
+      SET nombre=?, identificacion=?, cargo=?, tipo=?, activo=?, email=?, telefono=?
+      WHERE id=?
+    `;
+    await db.consultaDirecta(sql, [
+      data.nombre,
+      data.identificacion,
+      data.cargo || '',
+      data.tipo || 'usuario',
+      data.activo !== undefined ? data.activo : 1,
+      data.email || null,
+      data.telefono || null,
+      id,
+    ]);
+
+    console.log("✅ PERSONAL ACTUALIZADO - ID:", id);
+    return {
+      message: "Personal actualizado correctamente",
+      id: parseInt(id),
+      ...data
+    };
+  } catch (error) {
+    console.error("❌ ERROR EN ACTUALIZAR PERSONAL:", error);
+    throw error;
+  }
+}
+
+  // 🗑️ Eliminar registro
+  async function eliminar(id) {
+    try {
+      console.log("🗑️ ELIMINANDO PERSONAL ID:", id);
+
+      // Verificar si el empleado está referenciado en actas
+      const enUso = await db.consultaDirecta(
+        `SELECT id FROM actas WHERE entregado_por_id = ? OR recibido_por_id = ? OR auditor_id = ? LIMIT 1`,
+        [id, id, id]
+      );
+
+      if (enUso.length > 0) {
+        throw new Error("No se puede eliminar, el registro está asociado a un acta");
+      }
+
+      const sql = `DELETE FROM ${TABLA_PERSONAL} WHERE id = ?`;
+      await db.consultaDirecta(sql, [id]);
+
+      console.log("✅ PERSONAL ELIMINADO - ID:", id);
+      return { message: "Personal eliminado correctamente", id: parseInt(id) };
+    } catch (error) {
+      console.error("❌ ERROR EN ELIMINAR PERSONAL:", error);
+      throw error;
+    }
+  }
+
+  // 📋 Listar personal con filtros (INCLUYENDO TÉCNICOS)
+async function todosconfiltros(usuario, queryParams = {}) {
+  try {
+    const { tipo, activo, page = 1, limit = 50 } = queryParams;
+    const offset = (page - 1) * limit;
+
+    console.log("📋 SOLICITANDO PERSONAL CON FILTROS:", { tipo, activo, page, limit });
+
+    let sql = `
+      SELECT SQL_CALC_FOUND_ROWS 
+        id, nombre, identificacion, cargo, tipo, activo, email, telefono,
+        fecha_creacion, fecha_actualizacion
+      FROM ${TABLA_PERSONAL} 
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // 🔍 Filtros
+    if (tipo) {
+      sql += ` AND tipo = ?`;
+      params.push(tipo);
+    }
+
+    if (activo !== undefined) {
+      sql += ` AND activo = ?`;
+      params.push(activo ? 1 : 0);
+    }
+
+    sql += ` ORDER BY nombre LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), offset);
+
+    const items = await db.consultaDirecta(sql, params);
+    
+    // Obtener total para paginación
+    const countResult = await db.consultaDirecta('SELECT FOUND_ROWS() as total');
+    const total = countResult[0].total;
+
+    console.log(`✅ PERSONAL OBTENIDO: ${items.length} de ${total} registros`);
+
+    return {
+      items,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  } catch (error) {
+    console.error("❌ ERROR EN TODOS PERSONAL:", error);
+    throw error;
+  }
+}
+
+// 👨‍💼 Obtener solo técnicos activos (PARA ASIGNACIONES)
+async function tecnicosActivos() {
+  try {
+    console.log("👨‍💼 SOLICITANDO TÉCNICOS ACTIVOS");
+    const sql = `
+      SELECT id, nombre, identificacion, cargo, email, telefono
+      FROM ${TABLA_PERSONAL} 
+      WHERE tipo = 'tecnico' AND activo = 1
+      ORDER BY nombre
+    `;
+    const resultado = await db.consultaDirecta(sql);
+    console.log(`✅ TÉCNICOS ACTIVOS: ${resultado.length} registros`);
+    return resultado;
+  } catch (error) {
+    console.error("❌ ERROR EN TÉCNICOS ACTIVOS:", error);
+    throw error;
+  }
+}
+
+  return { 
+  todos, 
+  todosconfiltros,
+  uno, 
+  agregar, 
+  actualizar, 
+  eliminar,
+  tecnicosActivos  
+};
+};
+
+
+
+
+/srs/modulos/personal/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+// 📋 Listar todo el personal
+router.get(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "consultor"),
+  todos
+);
+
+// 🔍 Obtener por ID
+router.get(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "consultor"),
+  uno
+);
+router.get(
+  "/tecnicos/activos",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "tecnico", "consultor"),
+  tecnicosActivos
+);
+
+// ➕ Agregar nuevo registro
+router.post(
+  "/",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  agregar
+);
+
+// 🔄 Actualizar registro existente
+router.put(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero"),
+  actualizar
+);
+
+// 🗑️ Eliminar registro
+router.delete(
+  "/:id",
+  verificarToken,
+  permitirRoles("administrador"),
+  eliminar
+);
+
+// ------------------------------
+// Handlers
+// ------------------------------
+async function todos(req, res, next) {
+  try {
+    const items = await controlador.todos(req.user, req.query); // 👈 Pasar query params
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// 👨‍💼 Handler para técnicos activos
+async function tecnicosActivos(req, res, next) {
+  try {
+    const tecnicos = await controlador.tecnicosActivos();
+    respuesta.success(req, res, tecnicos, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const item = await controlador.uno(req.params.id);
+    if (!item) return respuesta.error(req, res, "Personal no encontrado", 404);
+    respuesta.success(req, res, item, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    const nuevo = await controlador.agregar(req.body);
+    respuesta.success(req, res, nuevo, 201);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function actualizar(req, res, next) {
+  try {
+    const actualizado = await controlador.actualizar(req.params.id, req.body);
+    respuesta.success(req, res, actualizado, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+async function eliminar(req, res, next) {
+  try {
+    const eliminado = await controlador.eliminar(req.params.id);
+    respuesta.success(req, res, eliminado, 200);
+  } catch (error) {
+    respuesta.error(req, res, error.message, 500);
+  }
+}
+
+module.exports = router;
+
+/srs/modulos/stock/ (vacio)
+
+/srs/modulos/uploads/rutas.js
+
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const { verificarToken, permitirRoles } = require('../auth/middleware');// Importa tu middleware
+const router = express.Router();
+
+// 📁 CONFIGURACIÓN CORREGIDA - DIRECTORIO DESTINO
+const getUploadsPath = () => {
+  // Ruta ABSOLUTA hacia src/uploads/images/articulos/
+  const baseDir = process.cwd(); // Directorio raíz del proyecto
+  const targetPath = path.join(baseDir, 'src', 'uploads', 'images', 'articulos');
+  
+  console.log("📍 RUTA DESTINO CONFIGURADA:");
+  console.log("   Base:", baseDir);
+  console.log("   Destino:", targetPath);
+  
+  return targetPath;
+};
+
+// Función para limpiar nombres de archivo
+const formatFileName = (text) => {
+  if (!text || text === 'null' || text === 'undefined') return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, '_')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '_')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '')
+    .substring(0, 30);
+};
+
+// ✅ CONFIGURACIÓN MULTER CORREGIDA
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadsDir = getUploadsPath();
+    
+    console.log("🔄 CONFIGURANDO DESTINO:");
+    console.log("   📁 Ruta destino:", uploadsDir);
+    
+    // Crear directorio si no existe
+    if (!fs.existsSync(uploadsDir)) {
+      console.log("   📂 Creando directorio...");
+      try {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log("   ✅ Directorio creado exitosamente");
+      } catch (error) {
+        console.log("   ❌ ERROR creando directorio:", error.message);
+        return cb(error);
+      }
+    } else {
+      console.log("   ✅ Directorio ya existe");
+    }
+    
+    // Verificar permisos
+    try {
+      const testFile = path.join(uploadsDir, 'test_permissions.txt');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+      console.log("   ✅ Permisos de escritura: OK");
+    } catch (writeError) {
+      console.log("   ❌ SIN PERMISOS DE ESCRITURA:", writeError.message);
+      return cb(writeError);
+    }
+    
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+    const { nombre_articulo, marca, referencia } = req.body;
+    
+    console.log("📝 CREANDO NOMBRE DE ARCHIVO:");
+    console.log("   - Artículo:", nombre_articulo);
+    console.log("   - Marca:", marca);
+    console.log("   - Referencia:", referencia);
+    
+    let fileName = "";
+    const nombreClean = formatFileName(nombre_articulo) || 'articulo';
+    const marcaClean = formatFileName(marca);
+    const referenciaClean = formatFileName(referencia);
+    
+    if (nombreClean && marcaClean && referenciaClean) {
+      fileName = `${nombreClean}_${marcaClean}_${referenciaClean}${fileExtension}`;
+    } else if (nombreClean && marcaClean) {
+      fileName = `${nombreClean}_${marcaClean}${fileExtension}`;
+    } else if (nombreClean) {
+      fileName = `${nombreClean}${fileExtension}`;
+    } else {
+      fileName = `articulo_${Date.now()}${fileExtension}`;
+    }
+    
+    console.log("   📸 Archivo final:", fileName);
+    cb(null, fileName);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+    console.log("🔍 Validando archivo:", file.originalname);
+    
+    if (allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      console.log("❌ Archivo rechazado - Extensión no permitida");
+      cb(new Error(`Tipo de archivo no permitido. Solo: ${allowedExtensions.join(', ')}`), false);
+    }
+  },
+});
+
+// ✅ RUTA PRINCIPAL CORREGIDA
+router.post("/image", verificarToken, upload.single("image"), (req, res) => {
+  try {
+    if (!req.file) {
+      console.log("❌ No se recibió archivo");
+      return res.status(400).json({
+        success: false,
+        error: "No se subió ninguna imagen",
+      });
+    }
+
+    console.log("✅ ARCHIVO SUBIDO EXITOSAMENTE:");
+    console.log("   📄 Nombre:", req.file.filename);
+    console.log("   📍 Ruta física:", req.file.path);
+    console.log("   💾 Tamaño:", req.file.size, "bytes");
+
+    // Verificar que el archivo se guardó
+    const fileExists = fs.existsSync(req.file.path);
+    if (!fileExists) {
+      console.log("❌ ERROR: Archivo no se guardó físicamente");
+      return res.status(500).json({
+        success: false,
+        error: "El archivo no se guardó en el servidor",
+      });
+    }
+
+    const imageUrl = `/uploads/images/articulos/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: "Imagen subida correctamente",
+      imageUrl: imageUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error("❌ ERROR:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error al subir imagen: " + error.message,
+    });
+  }
+});
+
+module.exports = router;
+
+/srs/modulos/usuarios/controlador.js
+
+const bcrypt = require("bcryptjs");
+
+const TABLA = "usuarios";
+
+module.exports = function (dbInyectada) {
+  let db = dbInyectada;
+  if (!db) {
+    db = require("../../DB/mysql");
+  }
+
+  function todos() {
+    return db.todos(TABLA);
+  }
+
+  function uno(id) {
+    return db.uno(TABLA, id);
+  }
+
+  async function agregar(data) {
+    // Si incluye password en texto plano, la ciframos
+    if (data.password) {
+      const salt = await bcrypt.genSalt(10);
+      data.password_hash = await bcrypt.hash(data.password, salt);
+      delete data.password; // eliminamos el campo plano para no guardarlo
+    }
+
+    return db.agregar(TABLA, data);
+  }
+
+  function eliminar(body) {
+    return db.eliminar(TABLA, body);
+  }
+
+  return {
+    todos,
+    uno,
+    agregar,
+    eliminar,
+  };
+};
+
+/srs/modulos/usuarios/rutas.js
+
+const controlador = require("./controlador")(require("../../DB/mysql"));
+const express = require("express");
+const router = express.Router();
+const respuesta = require("../../red/respuestas");
+const { verificarToken, permitirRoles } = require("../auth/middleware");
+
+router.get("/", verificarToken, permitirRoles("administrador"), todos);
+router.get("/:id", verificarToken, permitirRoles("administrador"), uno);
+router.post("/", verificarToken, permitirRoles("administrador"), agregar);
+router.put("/", verificarToken, permitirRoles("administrador"), eliminar);
+
+/*router.get("/", todos);
+router.get("/:id",  uno);
+router.post("/",  agregar);
+router.put("/",  eliminar);*/
+
+async function todos(req, res, next) {
+  try {
+    const items = await controlador.todos();
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function uno(req, res, next) {
+  try {
+    const items = await controlador.uno(req.params.id);
+    respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function agregar(req, res, next) {
+  try {
+    const items = await controlador.agregar(req.body);
+    if (req.body.id == 0) {
+      mensaje = "Item agregado satisfactoriamente";
+    } else {
+      mensaje = "Item actualizado satisfactoriamente";
+    }
+    respuesta.success(req, res, mensaje, 201);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function eliminar(req, res, next) {
+  try {
+    const items = await controlador.eliminar(req.body);
+    respuesta.success(req, res, "Item eliminado satisfactoriamente", 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = router;
+
+/srs/red/error.js
+
+const respuesta = require("./respuestas");
+
+function error(err, req, res, next) {
+  console.error("[error", err);
+  const message = err.message || "Error interno";
+  const status = err.statusCode || 500;
+  respuesta.error(req, res, message, status);
+}
+
+module.exports = error;
+
+/srs/red/respuestas.js
+
+function success(req, res, mensaje = "", status = 200) {
+  res.status(status).send({
+    error: false,
+    status: status,
+    body: mensaje,
+  });
+}
+
+function error(req, res, mensaje = "Error interno", status = 500) {
+  res.status(status).send({
+    error: true,
+    status: status,
+    body: mensaje,
+  });
+}
+
+module.exports = { success, error };
+
+/srs/apps.js
+
+const express = require("express");
+const morgan = require("morgan");
+const path = require("path");
+const fs = require("fs");
+const cors = require("./middleware/cors");// 🔐 Middleware personalizado de CORS
+const error = require("./red/error");// ❌ Manejo de errores
+const { app: _app } = require("./config");// 🔧 Configuración
+const app = express();
+// 📦 Rutas del sistema
+const usuarios = require("./modulos/usuarios/rutas");
+const categorias = require("./modulos/categorias/rutas");
+const auth = require("./modulos/auth/rutas");
+const articulos = require("./modulos/articulos/rutas");
+const uploads = require("./modulos/uploads/rutas");
+const marcas = require("./modulos/marcas/rutas");
+const inventario = require("./modulos/inventario/rutas");
+const asignaciones = require("./modulos/asignaciones/rutas");
+const gestion = require("./modulos/gestion/rutas");
+const actas = require("./modulos/actas/rutas");
+const maps = require('./modulos/maps/rutas');
+const personal = require("./modulos/personal/rutas");
+const rutaUploads = path.join(__dirname, "uploads"); // backend/uploads
+const rutaImagenesArticulos = path.join(rutaUploads, "images", "articulos");
+// Diagnóstico para verificar archivos estáticos
+app.get("/diagnostic/static-files", (req, res) => {
+  const diagnostico = {
+    ruta_uploads: rutaUploads,
+    existe_uploads: fs.existsSync(rutaUploads),
+    ruta_imagenes: rutaImagenesArticulos,
+    existe_imagenes: fs.existsSync(rutaImagenesArticulos),
+    archivos: []
+  };
+    if (diagnostico.existe_imagenes) {
+    diagnostico.archivos = fs.readdirSync(rutaImagenesArticulos);
+    const archivo = "mouse_logitech_m185.jpg";
+    const archivoPath = path.join(rutaImagenesArticulos, archivo);
+    diagnostico.archivo_target = {
+      nombre: archivo,
+      existe: fs.existsSync(archivoPath),
+      ruta_completa: archivoPath
+    };
+  }
+  res.json(diagnostico);
+});
+// 🔧 Middleware global
+app.use(cors); // CORS personalizado
+app.use(morgan("dev"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// 🧩 API REST - Módulos del sistema
+app.use("/api/categorias", categorias);
+app.use("/api/usuarios", usuarios);
+app.use("/api/auth", auth);
+app.use("/api/articulos", articulos);
+app.use("/api/marcas", marcas);
+app.use("/api/inventario", inventario);
+app.use("/api/asignaciones", asignaciones);
+app.use("/api/gestion", gestion);
+app.use("/api/actas", actas);
+app.use("/api/maps", maps);
+app.use("/api/uploads", uploads); // ¡Cuidado de no duplicar con `/uploads`!
+app.use("/api/personal", personal);
+app.use("/uploads/images/articulos", express.static(rutaImagenesArticulos));
+app.use(error);// ❌ Manejo de errores centralizado
+app.set("port", _app.port || 5000);// 🚀 Configuración del puerto
+module.exports = app;
+
+
+/srs/config.js
+require("dotenv").config();
+
+module.exports = {
+  app: {
+    port: process.env.PORT || 4000,
+  },
+
+  jwt: {
+    clave: process.env.JWT_SECRET || "suchance27", // 👈 cambia esta línea
+    tiempoExpiracion: process.env.JWT_TIEMPO_EXPIRACION || "6h",
+  },
+
+  mysql: {
+    host: process.env.MYSQL_HOST || "localhost",
+    user: process.env.MYSQL_USER || "root",
+    password: process.env.MYSQL_PASSWORD || "",
+    database: process.env.MYSQL_DATABASE || "inventario_bodega",
+  },
+};
+
+/srs/index.js
+
+const app = require('./app');
+
+app.listen(app.get('port'), () => {
+  console.log(`servidor escuchando en el puerto ${app.get('port')}`);
+});
+
+
+
+
+

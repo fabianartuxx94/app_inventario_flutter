@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/providers/auth_provider.dart';
-import 'package:frontend/screens/maps/detalles_sitio_card.dart';
+import 'package:frontend/widgets/cards/detalles_sitio_card.dart';
 import 'package:frontend/services/map_service.dart';
 import 'package:frontend/models/sitio_venta_model.dart';
 import 'package:frontend/widgets/custom_background.dart';
@@ -435,7 +435,7 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
         children: [
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: filtroCiudad,
+              initialValue: filtroCiudad,
               dropdownColor: const Color(0xFF001F5E),
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
@@ -471,7 +471,7 @@ class _MapaSitiosScreenState extends State<MapaSitiosScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: filtroTipo,
+              initialValue: filtroTipo,
               dropdownColor: const Color(0xFF001F5E),
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(

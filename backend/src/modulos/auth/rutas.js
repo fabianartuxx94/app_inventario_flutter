@@ -1,7 +1,8 @@
+const controlador = require("./controlador")(require("../../DB/mysql"));
 const express = require("express");
 const router = express.Router();
 const respuesta = require("../../red/respuestas");
-const controlador = require("./index");
+
 
 router.post("/login", login);
 

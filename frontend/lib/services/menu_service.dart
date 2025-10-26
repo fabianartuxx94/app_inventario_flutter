@@ -49,18 +49,12 @@ class MenuService {
       title: 'Stock', route: '/stock', icon: Icons.check_box, 
     ),
     MenuOption(
-      title: 'Activos', route: '/activos', icon: Icons.laptop, 
-    ),
-    MenuOption(
-      title: 'Consumibles', route: '/consumibles', icon: Icons.local_grocery_store, 
-    ),
-    MenuOption(
       title: 'Artículos',  route: '/articulos', icon: Icons.article, 
     ),
   ],
 ),
       MenuOption(
-        title: 'Asignacions', 
+        title: 'Asignaciones', 
         route: '/asignaciones', 
         icon: Icons.swap_horiz
       ),
@@ -73,6 +67,11 @@ class MenuService {
         title: 'Sitios de Venta', 
         route: '/sitios-venta', 
         icon: Icons.store
+      ),
+      MenuOption(
+        title: 'Ubicaciones', 
+        route: '/ubicaciones', 
+        icon: Icons.location_on
       ),
       MenuOption(
         title: 'Usuarios', 
@@ -105,6 +104,7 @@ class MenuService {
         route: '/articulos', 
         icon: Icons.inventory_2
       ),
+      
       MenuOption(
         title: 'Reportes', 
         route: '/reportes', 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/asignaciones/asignaciones_screen.dart';
 import 'package:frontend/screens/configuracion/configuracion_screen.dart';
 import 'package:frontend/screens/inventario/inventario_screen.dart';
 import 'package:frontend/screens/maps/maps_screen.dart';
@@ -94,8 +93,6 @@ class _DashboardScaffoldState extends State<DashboardScaffold> {
         return _buildPlaceholderPage("Movimientos");
       case '/sitios-venta':
         return _buildPlaceholderPage("Sitios de Venta");
-      case '/asignaciones':
-        return const AsignacionesScreen();
       case '/usuarios':
         return const UsuariosScreen();
       case '/reportes':

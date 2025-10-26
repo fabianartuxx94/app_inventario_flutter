@@ -5,15 +5,14 @@ import 'package:http/http.dart' as http;
 
 class AsignacionesService {
 
-  // 📋 Listar asignaciones con paginación y filtros
-  Future<Map<String, dynamic>> listarAsignaciones({
-    required AuthProvider authProvider,
-    int page = 1,
-    int limit = 50,
-    String? tecnicoId,
-    String? estado,
-  }) async {
-    try {
+ Future<Map<String, dynamic>> listarAsignaciones({
+  required AuthProvider authProvider,
+  int page = 1,
+  int limit = 50,
+  String? tecnicoId,
+  String? estado,
+}) async {
+  try {
       // Verificar autenticación
       if (!authProvider.isAuthenticated || authProvider.token == null) {
         return {
@@ -33,36 +32,95 @@ class AsignacionesService {
         url += '&estado=$estado';
       }
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${authProvider.token}',
-        },
-      );
+     final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${authProvider.token}',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return {
-          'success': true,
-          'data': data['data'] ?? data, // Adaptar según la estructura de tu API
-          'pagination': data['data']?['pagination'] ?? data['pagination'],
-          'items': data['data']?['items'] ?? data['body'],
-        };
-      } else {
-        return {
-          'success': false,
-          'error': 'Error al cargar asignaciones: ${response.statusCode}',
+    // ✅ DEBUG: Ver estructura completa de la respuesta
+    print('🔍 DEBUG - Respuesta cruda del backend:');
+    print('Status: ${response.statusCode}');
+    print('Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      // ✅ DEBUG: Ver estructura de datos
+      print('🔍 DEBUG - Estructura de data:');
+      print('Keys: ${data.keys}');
+      print('Tiene body: ${data.containsKey('body')}');
+      print('Tiene data: ${data.containsKey('data')}');
+      print('Tiene items: ${data.containsKey('items')}');
+      
+      if (data.containsKey('body')) {
+        final body = data['body'];
+        print('🔍 DEBUG - Tipo de body: ${body.runtimeType}');
+        if (body is Map) {
+          print('🔍 DEBUG - Keys de body: ${body.keys}');
+        }
+      }
+
+      // ✅ CORREGIDO: Adaptar estructura según lo que realmente devuelve el backend
+      Map<String, dynamic> resultado = {
+        'success': true,
+      };
+
+      // Caso 1: Si viene con estructura {body: {items: [], pagination: {}}}
+      if (data.containsKey('body') && data['body'] is Map) {
+        final body = data['body'] as Map<String, dynamic>;
+        resultado['items'] = body['items'] ?? [];
+        resultado['pagination'] = body['pagination'] ?? {};
+      }
+      // Caso 2: Si viene con estructura {data: {items: [], pagination: {}}}
+      else if (data.containsKey('data') && data['data'] is Map) {
+        final body = data['data'] as Map<String, dynamic>;
+        resultado['items'] = body['items'] ?? [];
+        resultado['pagination'] = body['pagination'] ?? {};
+      }
+      // Caso 3: Si viene con estructura directa {items: [], pagination: {}}
+      else if (data.containsKey('items')) {
+        resultado['items'] = data['items'] ?? [];
+        resultado['pagination'] = data['pagination'] ?? {};
+      }
+      // Caso 4: Si viene el array directamente en 'body'
+      else if (data.containsKey('body') && data['body'] is List) {
+        resultado['items'] = data['body'];
+        resultado['pagination'] = {
+          'page': page,
+          'limit': limit,
+          'total': data['body'].length,
+          'totalPages': 1
         };
       }
-    } catch (error) {
-      print('❌ ERROR en listarAsignaciones: $error');
+      // Caso 5: Fallback
+      else {
+        resultado['items'] = [];
+        resultado['pagination'] = {};
+      }
+
+      print('✅ DEBUG - Resultado final:');
+      print('  - Items: ${resultado['items']?.length ?? 0}');
+      print('  - Pagination: ${resultado['pagination']}');
+
+      return resultado;
+
+    } else {
       return {
         'success': false,
-        'error': 'Error de conexión',
+        'error': 'Error al cargar asignaciones: ${response.statusCode}',
       };
     }
+  } catch (error) {
+    print('❌ ERROR en listarAsignaciones: $error');
+    return {
+      'success': false,
+      'error': 'Error de conexión',
+    };
   }
+}
 
   // ➕ Crear nueva asignación
   Future<Map<String, dynamic>> crearAsignacion({
@@ -173,12 +231,12 @@ class AsignacionesService {
   }
 
   // 📊 Obtener inventario disponible para asignación
-  Future<Map<String, dynamic>> obtenerInventarioDisponible({
-    required AuthProvider authProvider,
-    String? tipoArticulo,
-    String? categoria,
-  }) async {
-    try {
+Future<Map<String, dynamic>> obtenerInventarioDisponible({
+  required AuthProvider authProvider,
+  String? tipoArticulo,
+  String? categoria,
+}) async {
+  try {
       // Verificar autenticación
       if (!authProvider.isAuthenticated || authProvider.token == null) {
         return {
@@ -198,76 +256,119 @@ class AsignacionesService {
         url += '${url.contains('?') ? '&' : '?'}categoria=$categoria';
       }
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${authProvider.token}',
-        },
-      );
+       final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${authProvider.token}',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return {
-          'success': true,
-          'items': data['data']?['items'] ?? data['body'] ?? [],
-        };
-      } else {
-        return {
-          'success': false,
-          'error': 'Error al cargar inventario disponible: ${response.statusCode}',
-        };
+    // ✅ DEBUG: Ver estructura de respuesta
+    print('🔍 DEBUG Inventario - Respuesta cruda:');
+    print('Status: ${response.statusCode}');
+    print('Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      // ✅ DEBUG: Ver estructura
+      print('🔍 DEBUG Inventario - Estructura:');
+      print('Keys: ${data.keys}');
+      print('Tiene body: ${data.containsKey('body')}');
+      print('Tiene data: ${data.containsKey('data')}');
+      print('Tiene items: ${data.containsKey('items')}');
+
+      // ✅ CORREGIDO: Adaptar estructura
+      List<dynamic> items = [];
+
+      // Caso 1: Si viene con estructura {body: {items: []}}
+      if (data.containsKey('body') && data['body'] is Map) {
+        final body = data['body'] as Map<String, dynamic>;
+        items = body['items'] ?? [];
       }
-    } catch (error) {
-      print('❌ ERROR en obtenerInventarioDisponible: $error');
+      // Caso 2: Si viene con estructura {data: {items: []}}
+      else if (data.containsKey('data') && data['data'] is Map) {
+        final body = data['data'] as Map<String, dynamic>;
+        items = body['items'] ?? [];
+      }
+      // Caso 3: Si viene con estructura directa {items: []}
+      else if (data.containsKey('items')) {
+        items = data['items'] ?? [];
+      }
+      // Caso 4: Si viene el array directamente en 'body'
+      else if (data.containsKey('body') && data['body'] is List) {
+        items = data['body'];
+      }
+      // Caso 5: Si viene el array directamente en 'data'
+      else if (data.containsKey('data') && data['data'] is List) {
+        items = data['data'];
+      }
+
+      print('✅ DEBUG Inventario - Items encontrados: ${items.length}');
+
+      return {
+        'success': true,
+        'items': items,
+      };
+    } else {
       return {
         'success': false,
-        'error': 'Error de conexión',
+        'error': 'Error al cargar inventario disponible: ${response.statusCode}',
       };
     }
+  } catch (error) {
+    print('❌ ERROR en obtenerInventarioDisponible: $error');
+    return {
+      'success': false,
+      'error': 'Error de conexión',
+    };
   }
+}
 
-  // 👨‍💼 Obtener técnicos disponibles (servicio auxiliar)
-  Future<Map<String, dynamic>> obtenerTecnicos({
-    required AuthProvider authProvider,
-  }) async {
-    try {
-      // Verificar autenticación
-      if (!authProvider.isAuthenticated || authProvider.token == null) {
-        return {
-          'success': false,
-          'error': 'Usuario no autenticado',
-        };
-      }
-
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiUrl}/tecnicos'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${authProvider.token}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        return {
-          'success': true,
-          'tecnicos': data['data'] ?? data['body'] ?? [],
-        };
-      } else {
-        return {
-          'success': false,
-          'error': 'Error al cargar técnicos: ${response.statusCode}',
-        };
-      }
-    } catch (error) {
-      print('❌ ERROR en obtenerTecnicos: $error');
+Future<Map<String, dynamic>> obtenerTecnicos({
+  required AuthProvider authProvider,
+}) async {
+  try {
+    // Verificar autenticación
+    if (!authProvider.isAuthenticated || authProvider.token == null) {
       return {
         'success': false,
-        'error': 'Error de conexión',
+        'error': 'Usuario no autenticado',
       };
     }
+
+    // ✅ CORREGIDO: Usar el nuevo endpoint de personal
+    final response = await http.get(
+      Uri.parse('${AppConfig.apiUrl}/personal/tecnicos/activos'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${authProvider.token}',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      
+      // ✅ La estructura ahora viene de personal/tecnicos/activos
+      return {
+        'success': true,
+        'tecnicos': data['data'] ?? data['body'] ?? [],
+      };
+    } else {
+      return {
+        'success': false,
+        'error': 'Error al cargar técnicos: ${response.statusCode}',
+      };
+    }
+  } catch (error) {
+    print('❌ ERROR en obtenerTecnicos: $error');
+    return {
+      'success': false,
+      'error': 'Error de conexión',
+    };
   }
+}
 
   // 🏪 Obtener sitios de venta (servicio auxiliar)
   Future<Map<String, dynamic>> obtenerSitiosVenta({

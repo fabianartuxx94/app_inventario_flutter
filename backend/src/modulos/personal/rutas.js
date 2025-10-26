@@ -1,7 +1,7 @@
+const controlador = require("./controlador")(require("../../DB/mysql"));
 const express = require("express");
 const router = express.Router();
 const respuesta = require("../../red/respuestas");
-const controlador = require("./index");
 const { verificarToken, permitirRoles } = require("../auth/middleware");
 
 // 📋 Listar todo el personal
@@ -18,6 +18,12 @@ router.get(
   verificarToken,
   permitirRoles("administrador", "bodeguero", "consultor"),
   uno
+);
+router.get(
+  "/tecnicos/activos",
+  verificarToken,
+  permitirRoles("administrador", "bodeguero", "tecnico", "consultor"),
+  tecnicosActivos
 );
 
 // ➕ Agregar nuevo registro
@@ -49,8 +55,18 @@ router.delete(
 // ------------------------------
 async function todos(req, res, next) {
   try {
-    const items = await controlador.todos();
+    const items = await controlador.todos(req.user, req.query); // 👈 Pasar query params
     respuesta.success(req, res, items, 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// 👨‍💼 Handler para técnicos activos
+async function tecnicosActivos(req, res, next) {
+  try {
+    const tecnicos = await controlador.tecnicosActivos();
+    respuesta.success(req, res, tecnicos, 200);
   } catch (error) {
     next(error);
   }

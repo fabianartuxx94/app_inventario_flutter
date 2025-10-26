@@ -5,7 +5,7 @@ import '../../models/inventario_model.dart';
 import '../../services/inventario_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_background.dart';
-import '../../widgets/inventario_detalles_card.dart';
+import '../../widgets/cards/inventario_detalles_card.dart';
 import '../../widgets/cards/inventario_tabla_card.dart';
 
 class InventarioScreen extends StatefulWidget {
@@ -486,6 +486,9 @@ Widget _buildFiltrosEnLinea() {
         _buildFiltroChip('Bodega', _selectedBodega, _filtrosDisponibles.bodegas, 'bodega'),
       if (_filtrosDisponibles.tiposBodega.isNotEmpty)
         _buildFiltroChip('Tipo Bodega', _selectedTipoBodega, _filtrosDisponibles.tiposBodega, 'tipoBodega'),
+
+       
+        
     ],
   );
 }

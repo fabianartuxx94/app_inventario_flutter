@@ -1,7 +1,7 @@
+const controlador = require("./controlador")(require("../../DB/mysql"));
 const express = require("express");
 const router = express.Router();
 const respuesta = require("../../red/respuestas");
-const controlador = require("./index");
 const { verificarToken, permitirRoles } = require("../auth/middleware");
 
 // 📋 Listar asignaciones
@@ -45,10 +45,22 @@ async function listarAsignaciones(req, res, next) {
   try {
     console.log('📥 Query params para asignaciones:', req.query);
     const resultado = await controlador.todos(req.user, req.query);
-    respuesta.success(req, res, resultado, 200);
+    
+    // ✅ Estructura consistente para el frontend
+    respuesta.success(req, res, {
+      items: resultado.items,
+      pagination: resultado.pagination
+    }, 200);
+    
   } catch (error) {
     console.error('❌ Error en listar asignaciones:', error);
-    respuesta.error(req, res, error.message, 500);
+    
+    // Manejar errores específicos de SQL
+    if (error.code === 'ER_PARSE_ERROR') {
+      respuesta.error(req, res, 'Error en la consulta de base de datos', 500);
+    } else {
+      respuesta.error(req, res, error.message, 500);
+    }
   }
 }
 
@@ -101,7 +113,7 @@ async function actualizarEstadoAsignacion(req, res, next) {
   }
 }
 
-// 📊 Obtener inventario disponible
+// 📊 Obtener inventario disponible - ✅ CORREGIDO
 async function obtenerInventarioDisponible(req, res, next) {
   try {
     console.log('🔍 Consultando inventario disponible para asignación');

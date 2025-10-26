@@ -3,7 +3,7 @@ const config = require("../config");
 
 const clave = config.jwt.clave;
 
-/**
+/*
  * Asigna un token JWT al usuario autenticado.
  * Incluye los campos id, username, rol y bodega.
  * 

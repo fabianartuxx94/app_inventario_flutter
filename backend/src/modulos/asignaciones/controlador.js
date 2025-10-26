@@ -5,12 +5,13 @@ module.exports = function (dbInyectada) {
   let db = dbInyectada;
   if (!db) db = require("../../DB/mysql");
 
-  // 📋 Listar asignaciones activas
+  // 📋 Listar asignaciones activas - CORREGIDO SIN ERRORES DE SINTAXIS
   async function todos(usuario, queryParams = {}) {
     try {
       const { page = 1, limit = 50, tecnico_id = '', estado = '' } = queryParams;
       const offset = (page - 1) * limit;
 
+      // ✅ CORREGIDO: Sin comentarios con // que rompan la sintaxis SQL
       let sql = `
         SELECT SQL_CALC_FOUND_ROWS
           a.id,
@@ -18,10 +19,10 @@ module.exports = function (dbInyectada) {
           a.estado,
           a.observaciones,
           
-          -- Info del técnico
-          t.id as tecnico_id,
-          t.nombre_completo as tecnico_nombre,
-          t.identificacion as tecnico_identificacion,
+          -- Info del técnico (usar personal)
+          p.id as tecnico_id,
+          p.nombre as tecnico_nombre,
+          p.identificacion as tecnico_identificacion,
           
           -- Info del inventario
           i.id as inventario_id,
@@ -49,7 +50,7 @@ module.exports = function (dbInyectada) {
           u.nombre_completo as asignador_nombre
           
         FROM ${TABLA_ASIGNACIONES} a
-        INNER JOIN tecnicos t ON a.tecnico_id = t.id
+        INNER JOIN personal p ON a.tecnico_id = p.id AND p.tipo = 'tecnico' AND p.activo = 1
         INNER JOIN inventario i ON a.inventario_id = i.id
         INNER JOIN articulos ar ON i.articulo_id = ar.id
         INNER JOIN sitios_venta sv ON a.sitio_venta_id = sv.id
@@ -79,6 +80,9 @@ module.exports = function (dbInyectada) {
       sql += ` ORDER BY a.fecha_asignacion DESC LIMIT ? OFFSET ?`;
       params.push(parseInt(limit), offset);
 
+      console.log('🔍 SQL Ejecutado:', sql);
+      console.log('🔍 Parámetros:', params);
+
       const items = await db.consultaDirecta(sql, params);
       const countResult = await db.consultaDirecta('SELECT FOUND_ROWS() as total');
       const total = countResult[0].total;
@@ -98,7 +102,7 @@ module.exports = function (dbInyectada) {
     }
   }
 
-  // ➕ Crear nueva asignación
+  // ➕ Crear nueva asignación - CORREGIDO
   async function asignar(data, usuario) {
     const connection = await db.getConnection();
     
@@ -123,7 +127,7 @@ module.exports = function (dbInyectada) {
       }
 
       // 2. Verificar que el técnico existe y está activo
-      const tecnicoSql = `SELECT * FROM tecnicos WHERE id = ? AND activo = 1`;
+      const tecnicoSql = `SELECT * FROM personal WHERE id = ? AND tipo = 'tecnico' AND activo = 1`;
       const tecnico = await connection.query(tecnicoSql, [data.tecnico_id]);
       
       if (!tecnico.length) {
@@ -153,7 +157,7 @@ module.exports = function (dbInyectada) {
         data.observaciones || null
       ]);
 
-      // 5. Actualizar estado del inventario (el trigger se encargará del historial)
+      // 5. Actualizar estado del inventario
       const updateInventarioSql = `
         UPDATE inventario 
         SET estado_asignacion = 'asignado', fecha_actualizacion = NOW() 
